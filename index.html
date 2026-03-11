@@ -2,10 +2,100 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
+<title>CCGL Dashboard</title>
+
+<style>
+
+body{
+font-family: Arial;
+margin:0;
+background:#f4f6f9;
+}
+
+/* LOGIN */
+
+#loginTela{
+display:flex;
+align-items:center;
+justify-content:center;
+height:100vh;
+background:#2c3e50;
+}
+
+#loginBox{
+background:white;
+padding:40px;
+border-radius:8px;
+width:320px;
+text-align:center;
+box-shadow:0 10px 30px rgba(0,0,0,0.2);
+}
+
+#loginBox input{
+width:100%;
+padding:10px;
+margin:8px 0;
+}
+
+button{
+padding:10px;
+cursor:pointer;
+}
+
+/* DASHBOARD */
+
+#dashboard{
+display:none;
+padding:30px;
+}
+
+
+#usuarios{
+display:none;
+margin-top:20px;
+border-top:1px solid #ccc;
+padding-top:20px;
+}
+
+</style>
+</head>
+
+<body>
+
+<!-- LOGIN -->
+
+<div id="loginTela">
+
+<div id="loginBox">
+
+<h2>Login</h2>
+
+<input id="user" placeholder="Usuário">
+<input id="pass" type="password" placeholder="Senha">
+
+<button onclick="login()">Entrar</button>
+
+<p id="erro" style="color:red"></p>
+
+</div>
+
+</div>
+
+<!-- DASHBOARD -->
+
+<div id="dashboard">
+
+<div id="conteudo">
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CCGL — Dashboard de Manutenção</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+
 <style>
 :root {
     --azul:       #003366;
@@ -443,6 +533,34 @@ body {
     .header-sub { display: none; }
     .filtro-btn { padding: 6px 10px; font-size: 11px; }
 }
+
+<style>
+
+/* TODO O CSS QUE JÁ EXISTE */
+
+.header-actions{
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+
+.header-btn{
+    height:36px;
+    padding:0 14px;
+    border:1px solid rgba(255,255,255,0.22);
+    background:rgba(255,255,255,0.10);
+    color:#fff;
+    border-radius:8px;
+    font-size:12px;
+    font-weight:700;
+    cursor:pointer;
+}
+
+.header-btn:hover{
+    background:rgba(255,255,255,0.18);
+}
+
+
 </style>
 </head>
 <body>
@@ -452,9 +570,20 @@ body {
         <div class="header-logo">CCGL</div>
         <div class="header-sub">Dashboard de Manutenção</div>
     </div>
-    <div class="header-status">
-        <div class="status-dot"></div>
-        <span id="txt-status">Conectando...</span>
+
+    <div class="header-actions">
+        <div class="header-status">
+            <div class="status-dot"></div>
+            <span id="txt-status">Conectando...</span>
+        </div>
+
+        <button class="header-btn" id="btnUsuarios" onclick="abrirUsuarios()" style="display:none;">
+            Acessos
+        </button>
+
+        <button class="header-btn" onclick="logout()">
+            Sair
+        </button>
     </div>
 </header>
 
@@ -804,7 +933,7 @@ async function carregarDados() {
             choices: r.choices || {},
             atualizado_em: r.atualizado_em
         }));
-
+         
         document.getElementById('txt-status').textContent = `${todosOsDados.length} OS carregadas`;
         preencherFiltroSetores();
         aplicarFiltros();
@@ -1428,5 +1557,168 @@ function renderTimelineBD(bds, bdsComTempo) {
 // ══════════════════════════════════════
 window.onload = () => carregarDados();
 </script>
+</body>
+</html>
+
+</div>
+
+<!-- GERENCIAR USUÁRIOS -->
+
+<div id="usuarios">
+
+<h3>Criar novo usuário</h3>
+
+<input id="novoUser" placeholder="Usuário">
+<input id="novaSenha" placeholder="Senha">
+
+<button onclick="criarUsuario()">Criar</button>
+
+<h3>Usuários cadastrados</h3>
+
+<div id="listaUsuarios"></div>
+
+</div>
+
+</div>
+
+<script>
+
+/* LOGIN ADMIN PRINCIPAL */
+
+const MASTER_LOGIN_USUARIO = "admin";
+const MASTER_LOGIN_SENHA = "ccgl2026";
+
+/* BANCO LOCAL */
+
+let usuarios = JSON.parse(localStorage.getItem("usuarios")) || [
+{user:MASTER_LOGIN_USUARIO,pass:MASTER_LOGIN_SENHA,admin:true}
+];
+
+function salvar(){
+localStorage.setItem("usuarios",JSON.stringify(usuarios));
+}
+
+/* LOGIN */
+
+function login() {
+    let u = document.getElementById("user").value;
+    let p = document.getElementById("pass").value;
+
+    let user = usuarios.find(x => x.user === u && x.pass === p);
+
+    if (!user) {
+        document.getElementById("erro").innerText = "Login inválido";
+        return;
+    }
+
+    sessionStorage.setItem("logado", u);
+    sessionStorage.setItem("admin", user.admin ? "true" : "false");
+
+    document.getElementById("loginTela").style.display = "none";
+    document.getElementById("dashboard").style.display = "block";
+
+    if (user.admin) {
+        document.getElementById("btnUsuarios").style.display = "inline-flex";
+    } else {
+        document.getElementById("btnUsuarios").style.display = "none";
+    }
+
+    listarUsuarios();
+}
+
+/* LOGOUT */
+
+function logout(){
+sessionStorage.clear();
+location.reload();
+}
+
+/* GERENCIAR USUÁRIOS */
+
+function abrirUsuarios(){
+
+let div=document.getElementById("usuarios");
+
+div.style.display= div.style.display==="block" ? "none" : "block";
+
+}
+
+/* CRIAR USUÁRIO */
+
+function criarUsuario(){
+
+let u=document.getElementById("novoUser").value;
+let p=document.getElementById("novaSenha").value;
+
+if(!u || !p){
+alert("Preencha usuário e senha");
+return;
+}
+
+usuarios.push({user:u,pass:p,admin:false});
+
+salvar();
+
+listarUsuarios();
+
+}
+
+/* LISTA */
+
+function listarUsuarios(){
+
+let lista=document.getElementById("listaUsuarios");
+
+lista.innerHTML="";
+
+usuarios.forEach((u,i)=>{
+
+if(u.admin)return;
+
+let div=document.createElement("div");
+
+div.innerHTML=`
+${u.user}
+<button onclick="remover(${i})">Excluir</button>
+`;
+
+lista.appendChild(div);
+
+});
+
+}
+
+/* REMOVER */
+
+function remover(i){
+
+usuarios.splice(i,1);
+
+salvar();
+
+listarUsuarios();
+
+}
+
+window.addEventListener("load", () => {
+    const logado = sessionStorage.getItem("logado");
+    const isAdmin = sessionStorage.getItem("admin") === "true";
+
+    if (logado) {
+        document.getElementById("loginTela").style.display = "none";
+        document.getElementById("dashboard").style.display = "block";
+
+        if (isAdmin) {
+            document.getElementById("btnUsuarios").style.display = "inline-flex";
+        } else {
+            document.getElementById("btnUsuarios").style.display = "none";
+        }
+
+        listarUsuarios();
+    }
+});
+
+</script>
+
 </body>
 </html>
