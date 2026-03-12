@@ -426,6 +426,9 @@ body {
 .badge-bd  { background: #fef2f2; color: #dc3545; }
 .badge-cor { background: #fff7ed; color: #c2410c; }
 .badge-mel { background: #f0fdf4; color: #166534; }
+.badge-insp   { background: var(--azul-light); color: var(--azul); }
+.badge-corsin { background: #fdf4ff; color: #7e22ce; }
+.badge-rearme { background: #fffbeb; color: #92400e; }
 .badge-out { background: var(--cinza-bg); color: var(--muted); }
 
 .bar-mini {
@@ -679,6 +682,24 @@ body {
             <div class="kpi-label">Melhorias</div>
             <div class="kpi-sub" id="kpi-melhoria-sub"></div>
         </div>
+        <div class="kpi-card azul">
+            <div class="kpi-icon">🔍</div>
+            <div class="kpi-valor" id="kpi-insp">—</div>
+            <div class="kpi-label">Inspeção NP</div>
+            <div class="kpi-sub" id="kpi-insp-sub"></div>
+        </div>
+        <div class="kpi-card roxo">
+            <div class="kpi-icon">🌪️</div>
+            <div class="kpi-valor" id="kpi-corsin">—</div>
+            <div class="kpi-label">Corsin</div>
+            <div class="kpi-sub" id="kpi-corsin-sub"></div>
+        </div>
+        <div class="kpi-card ambar">
+            <div class="kpi-icon">🔁</div>
+            <div class="kpi-valor" id="kpi-rearme">—</div>
+            <div class="kpi-label">Rearme</div>
+            <div class="kpi-sub" id="kpi-rearme-sub"></div>
+        </div>
         <div class="kpi-card roxo">
             <div class="kpi-icon">🔌</div>
             <div class="kpi-valor" id="kpi-ele">—</div>
@@ -732,18 +753,7 @@ body {
     </div>
 
     <div class="secoes-grid">
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">🏆 Equipamentos com mais OS</div>
-                <span style="font-size:11px; color:var(--muted);">Top 15</span>
-            </div>
-            <div class="card-body" style="padding: 0;">
-                <div id="tabela-equip-wrap">
-                    <div class="loading-state"><div class="spinner"></div>Carregando...</div>
-                </div>
-            </div>
-        </div>
-        <div class="card">
+        <div class="card secao-full">
             <div class="card-header">
                 <div class="card-title">🕐 Últimas Atividades</div>
                 <span style="font-size:11px; color:var(--muted);" id="label-ultimas"></span>
@@ -753,6 +763,17 @@ body {
                     <div class="timeline" id="timeline-wrap">
                         <div class="loading-state"><div class="spinner"></div>Carregando...</div>
                     </div>
+                </div>
+            </div>
+        </div>
+        <div class="card secao-full">
+            <div class="card-header">
+                <div class="card-title">🏆 Equipamentos com mais OS</div>
+                <span style="font-size:11px; color:var(--muted);">Top 15</span>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                <div id="tabela-equip-wrap">
+                    <div class="loading-state"><div class="spinner"></div>Carregando...</div>
                 </div>
             </div>
         </div>
@@ -834,6 +855,90 @@ body {
         </div>
     </div>
 
+    <!-- ═══ SEÇÃO MTBF / MTTR ═══ -->
+    <div style="margin: 32px 0 20px; display:flex; align-items:center; gap:12px;">
+        <div style="flex:1; height:1px; background:var(--borda);"></div>
+        <div style="background:var(--azul); color:white; padding:6px 18px; border-radius:20px; font-size:12px; font-weight:700; letter-spacing:1px; white-space:nowrap;">
+            📐 CONFIABILIDADE — MTBF / MTTR
+        </div>
+        <div style="flex:1; height:1px; background:var(--borda);"></div>
+    </div>
+
+    <div class="kpi-grid" style="margin-bottom:20px;">
+        <div class="kpi-card azul">
+            <div class="kpi-icon">📐</div>
+            <div class="kpi-valor" id="kpi-mtbf">—</div>
+            <div class="kpi-label">MTBF Médio</div>
+            <div class="kpi-sub">tempo entre falhas</div>
+        </div>
+        <div class="kpi-card ambar">
+            <div class="kpi-icon">🔧</div>
+            <div class="kpi-valor" id="kpi-mttr">—</div>
+            <div class="kpi-label">MTTR Médio</div>
+            <div class="kpi-sub">tempo médio de reparo</div>
+        </div>
+        <div class="kpi-card verde">
+            <div class="kpi-icon">✅</div>
+            <div class="kpi-valor" id="kpi-disponibilidade">—</div>
+            <div class="kpi-label">Disponibilidade</div>
+            <div class="kpi-sub">MTBF / (MTBF + MTTR)</div>
+        </div>
+        <div class="kpi-card vermelho">
+            <div class="kpi-icon">⚠️</div>
+            <div class="kpi-valor" id="kpi-criticos">—</div>
+            <div class="kpi-label">Equip. Críticos</div>
+            <div class="kpi-sub">MTBF &lt; 72h</div>
+        </div>
+    </div>
+
+    <div class="secoes-grid" style="margin-bottom:20px;">
+        <div class="card secao-full">
+            <div class="card-header">
+                <div class="card-title">📐 MTBF e MTTR por Equipamento</div>
+                <span style="font-size:11px; color:var(--muted);">Top 15 com mais BDs · quanto maior o MTBF, melhor</span>
+            </div>
+            <div class="card-body" style="padding:0;">
+                <div id="tabela-mtbf">
+                    <div class="loading-state"><div class="spinner"></div>Carregando...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ SEÇÃO REINCIDÊNCIAS ═══ -->
+    <div style="margin: 32px 0 20px; display:flex; align-items:center; gap:12px;">
+        <div style="flex:1; height:1px; background:var(--borda);"></div>
+        <div style="background:#8b5cf6; color:white; padding:6px 18px; border-radius:20px; font-size:12px; font-weight:700; letter-spacing:1px; white-space:nowrap;">
+            🔁 REINCIDÊNCIAS — EQUIPAMENTOS CRÍTICOS
+        </div>
+        <div style="flex:1; height:1px; background:var(--borda);"></div>
+    </div>
+
+    <div class="secoes-grid" style="margin-bottom:20px;">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">🔁 Top Reincidentes (BDs)</div>
+                <span style="font-size:11px; color:var(--muted);">equipamentos com mais quebras repetidas</span>
+            </div>
+            <div class="card-body">
+                <div class="chart-wrap" style="height:280px;">
+                    <canvas id="chart-reincidencia"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">📊 Tendência de Reincidência</div>
+                <span style="font-size:11px; color:var(--muted);" id="label-equip-reinc">Top 5 equipamentos</span>
+            </div>
+            <div class="card-body">
+                <div class="chart-wrap" style="height:280px;">
+                    <canvas id="chart-reinc-tendencia"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <div id="usuarios">
@@ -872,6 +977,8 @@ let chartLinha      = null;
 let chartTipos      = null;
 let chartSetor      = null;
 let chartTempoLinha = null;
+let chartReincidencia = null;
+let chartReincTendencia = null;
 
 // ══════════════════════════════════════
 //  LOGIN E GERENCIAMENTO (SUPABASE)
@@ -1156,20 +1263,28 @@ function renderizarTudo() {
     renderTabelaEquip();
     renderTimeline();
     renderTempoParada();
+    renderMTBF();
+    renderReincidencias();
 }
 
 function renderKPIs() {
-    const total = dadosFiltrados.length;
-    const bd    = dadosFiltrados.filter(o => o.choices?.tipo === 'BREAK DOWN').length;
-    const corr  = dadosFiltrados.filter(o => o.choices?.tipo === 'CORRETIVA').length;
-    const mel   = dadosFiltrados.filter(o => o.choices?.tipo === 'MELHORIA').length;
-    const ele   = dadosFiltrados.filter(o => o.choices?.esp  === 'ELE').length;
-    const mec   = dadosFiltrados.filter(o => o.choices?.esp  === 'MEC').length;
+    const total  = dadosFiltrados.length;
+    const bd     = dadosFiltrados.filter(o => o.choices?.tipo === 'BREAK DOWN').length;
+    const corr   = dadosFiltrados.filter(o => o.choices?.tipo === 'CORRETIVA').length;
+    const mel    = dadosFiltrados.filter(o => o.choices?.tipo === 'MELHORIA').length;
+    const insp   = dadosFiltrados.filter(o => o.choices?.tipo === 'INSPEÇÃO NP').length;
+    const corsin = dadosFiltrados.filter(o => o.choices?.tipo === 'CORSIN').length;
+    const rearme = dadosFiltrados.filter(o => o.choices?.tipo === 'REARME').length;
+    const ele    = dadosFiltrados.filter(o => o.choices?.esp  === 'ELE').length;
+    const mec    = dadosFiltrados.filter(o => o.choices?.esp  === 'MEC').length;
 
     document.getElementById('kpi-total').textContent     = total;
     document.getElementById('kpi-bd').textContent        = bd;
     document.getElementById('kpi-corretiva').textContent = corr;
     document.getElementById('kpi-melhoria').textContent  = mel;
+    document.getElementById('kpi-insp').textContent      = insp;
+    document.getElementById('kpi-corsin').textContent    = corsin;
+    document.getElementById('kpi-rearme').textContent    = rearme;
     document.getElementById('kpi-ele').textContent       = ele;
     document.getElementById('kpi-mec').textContent       = mec;
 
@@ -1177,6 +1292,9 @@ function renderKPIs() {
     document.getElementById('kpi-bd-sub').textContent        = pct(bd);
     document.getElementById('kpi-corretiva-sub').textContent = pct(corr);
     document.getElementById('kpi-melhoria-sub').textContent  = pct(mel);
+    document.getElementById('kpi-insp-sub').textContent      = pct(insp);
+    document.getElementById('kpi-corsin-sub').textContent    = pct(corsin);
+    document.getElementById('kpi-rearme-sub').textContent    = pct(rearme);
     document.getElementById('kpi-ele-sub').textContent       = pct(ele);
     document.getElementById('kpi-mec-sub').textContent       = pct(mec);
 
@@ -1328,12 +1446,15 @@ function renderTabelaEquip() {
     const equipMap = {};
     dadosFiltrados.forEach(o => {
         const tag = o.dados?.['i-tagm'] || 'Sem tag';
-        if (!equipMap[tag]) equipMap[tag] = { total: 0, bd: 0, corr: 0, mel: 0, outros: 0 };
+        if (!equipMap[tag]) equipMap[tag] = { total: 0, bd: 0, corr: 0, mel: 0, insp: 0, corsin: 0, rearme: 0, outros: 0 };
         equipMap[tag].total++;
         const tipo = o.choices?.tipo || 'OUTROS';
         if (tipo === 'BREAK DOWN') equipMap[tag].bd++;
         else if (tipo === 'CORRETIVA') equipMap[tag].corr++;
         else if (tipo === 'MELHORIA') equipMap[tag].mel++;
+        else if (tipo === 'INSPEÇÃO NP') equipMap[tag].insp++;
+        else if (tipo === 'CORSIN') equipMap[tag].corsin++;
+        else if (tipo === 'REARME') equipMap[tag].rearme++;
         else equipMap[tag].outros++;
     });
 
@@ -1351,6 +1472,9 @@ function renderTabelaEquip() {
                     <th style="text-align:center">BD</th>
                     <th style="text-align:center">Corr</th>
                     <th style="text-align:center">Mel</th>
+                    <th style="text-align:center">Insp</th>
+                    <th style="text-align:center">Corsin</th>
+                    <th style="text-align:center">Rearme</th>
                     <th style="text-align:center">Outros</th>
                     <th style="min-width:80px">Volume</th>
                 </tr>
@@ -1372,6 +1496,9 @@ function renderTabelaEquip() {
                         <td style="text-align:center">${v.bd > 0 ? `<span class="badge badge-bd">${v.bd}</span>` : '<span style="color:var(--borda)">—</span>'}</td>
                         <td style="text-align:center">${v.corr > 0 ? `<span class="badge badge-cor">${v.corr}</span>` : '<span style="color:var(--borda)">—</span>'}</td>
                         <td style="text-align:center">${v.mel > 0 ? `<span class="badge badge-mel">${v.mel}</span>` : '<span style="color:var(--borda)">—</span>'}</td>
+                        <td style="text-align:center">${v.insp > 0 ? `<span class="badge badge-insp">${v.insp}</span>` : '<span style="color:var(--borda)">—</span>'}</td>
+                        <td style="text-align:center">${v.corsin > 0 ? `<span class="badge badge-corsin">${v.corsin}</span>` : '<span style="color:var(--borda)">—</span>'}</td>
+                        <td style="text-align:center">${v.rearme > 0 ? `<span class="badge badge-rearme">${v.rearme}</span>` : '<span style="color:var(--borda)">—</span>'}</td>
                         <td style="text-align:center">${v.outros > 0 ? `<span class="badge badge-out">${v.outros}</span>` : '<span style="color:var(--borda)">—</span>'}</td>
                         <td>
                             <div class="bar-mini"><div class="bar-mini-fill" style="width:${pctTotal}%"></div></div>
@@ -1488,6 +1615,212 @@ function renderTimelineBD(bds, bdsComTempo) {
     const recentes = [...bds].sort((a, b) => (b.dados?.['i-data'] || '').localeCompare(a.dados?.['i-data'] || '')).slice(0, 40);
     if (bds.length === 0) { wrap.innerHTML = '<div class="empty-state">✅ Tudo OK</div>'; return; }
     wrap.innerHTML = recentes.map(os => `<div class="timeline-item"><div class="timeline-dot bd"></div><div class="timeline-info"><div class="timeline-head"><span class="timeline-num">OS ${os.codfolha}</span> ${tempoMap[os.codfolha] ? `<span class="badge badge-bd">⏱ ${formatarMinutos(tempoMap[os.codfolha])}</span>` : ''}</div><div class="timeline-equip">${(os.dados?.['i-tagm'] || '').split(' - ')[0]}</div><div class="timeline-meta">Parada: ${formatarDataBR(os.dados?.['i-data'])} ${os.dados?.['i-hora'] || ''}</div></div></div>`).join('');
+}
+
+// ══════════════════════════════════════
+//  MTBF / MTTR
+// ══════════════════════════════════════
+
+function renderMTBF() {
+    const bds = dadosFiltrados.filter(o => o.choices?.tipo === 'BREAK DOWN');
+
+    // Agrupar BDs por equipamento com tempo de reparo
+    const equipMap = {};
+    bds.forEach(os => {
+        const tag = os.dados?.['i-tagm'] || 'Sem tag';
+        const min = calcularMinutosParada(os);
+        if (!equipMap[tag]) equipMap[tag] = { bds: [], reparos: [] };
+        equipMap[tag].bds.push(os.dados?.['i-data'] || '');
+        if (min !== null) equipMap[tag].reparos.push(min);
+    });
+
+    // Calcular MTBF por equipamento (tempo médio entre falhas em horas)
+    const resultados = [];
+    Object.entries(equipMap).forEach(([tag, v]) => {
+        if (v.bds.length < 2) return; // precisa de ao menos 2 BDs
+        const datas = v.bds.filter(Boolean).sort();
+        let somaIntervalos = 0;
+        for (let i = 1; i < datas.length; i++) {
+            const diff = (new Date(datas[i]+'T00:00:00') - new Date(datas[i-1]+'T00:00:00')) / 60000; // em minutos
+            somaIntervalos += diff;
+        }
+        const mtbf = Math.round(somaIntervalos / (datas.length - 1)); // minutos
+        const mttr = v.reparos.length > 0 ? Math.round(v.reparos.reduce((a,b) => a+b,0) / v.reparos.length) : null;
+        const disp = mttr !== null && mtbf > 0 ? ((mtbf / (mtbf + mttr)) * 100).toFixed(1) : null;
+        resultados.push({ tag, qtdBDs: v.bds.length, mtbf, mttr, disp });
+    });
+
+    resultados.sort((a, b) => a.mtbf - b.mtbf); // menor MTBF = mais crítico
+
+    // KPIs globais
+    const mtbfMedio = resultados.length > 0 ? Math.round(resultados.reduce((s,r) => s + r.mtbf, 0) / resultados.length) : null;
+    const mttrMedio = resultados.filter(r => r.mttr !== null).length > 0
+        ? Math.round(resultados.filter(r => r.mttr !== null).reduce((s,r) => s + r.mttr, 0) / resultados.filter(r => r.mttr !== null).length)
+        : null;
+    const dispMedia = mtbfMedio && mttrMedio ? ((mtbfMedio / (mtbfMedio + mttrMedio)) * 100).toFixed(1) : null;
+    const criticos = resultados.filter(r => r.mtbf < 72 * 60).length; // MTBF < 72h em minutos
+
+    document.getElementById('kpi-mtbf').textContent         = mtbfMedio ? formatarMinutos(mtbfMedio) : '—';
+    document.getElementById('kpi-mttr').textContent         = mttrMedio ? formatarMinutos(mttrMedio) : '—';
+    document.getElementById('kpi-disponibilidade').textContent = dispMedia ? dispMedia + '%' : '—';
+    document.getElementById('kpi-criticos').textContent     = criticos;
+
+    // Tabela
+    const wrap = document.getElementById('tabela-mtbf');
+    if (resultados.length === 0) {
+        wrap.innerHTML = '<div class="empty-state">📭 Sem dados suficientes (necessário ≥2 BDs por equipamento)</div>';
+        return;
+    }
+
+    const top15 = resultados.slice(0, 15);
+    const maxMTBF = Math.max(...top15.map(r => r.mtbf));
+
+    wrap.innerHTML = `
+    <table class="tabela-equip">
+        <thead><tr>
+            <th>#</th>
+            <th>Equipamento</th>
+            <th style="text-align:center">BDs</th>
+            <th style="text-align:center">MTBF</th>
+            <th style="text-align:center">MTTR</th>
+            <th style="text-align:center">Disponibilidade</th>
+            <th style="min-width:100px">Confiabilidade</th>
+        </tr></thead>
+        <tbody>${top15.map((r, i) => {
+            const cod = r.tag.split(' - ')[0];
+            const pct = Math.round(r.mtbf / maxMTBF * 100);
+            const dispNum = r.disp ? parseFloat(r.disp) : null;
+            const dispCor = dispNum === null ? 'var(--muted)' : dispNum >= 95 ? 'var(--verde)' : dispNum >= 80 ? 'var(--ambar)' : 'var(--vermelho)';
+            const criticidade = r.mtbf < 24*60 ? '🔴' : r.mtbf < 72*60 ? '🟡' : '🟢';
+            return `<tr>
+                <td style="color:var(--muted);font-size:11px;font-family:var(--mono)">${i+1}</td>
+                <td><span class="equip-tag">${cod}</span></td>
+                <td style="text-align:center"><span class="badge badge-bd">${r.qtdBDs}</span></td>
+                <td style="text-align:center;font-family:var(--mono);font-weight:700;color:var(--azul)">${formatarMinutos(r.mtbf)}</td>
+                <td style="text-align:center;font-family:var(--mono);color:var(--ambar)">${r.mttr ? formatarMinutos(r.mttr) : '—'}</td>
+                <td style="text-align:center;font-weight:700;color:${dispCor}">${r.disp ? r.disp + '%' : '—'}</td>
+                <td>
+                    ${criticidade}
+                    <div class="bar-mini" style="margin-top:4px"><div class="bar-mini-fill" style="width:${pct}%;background:${dispCor}"></div></div>
+                </td>
+            </tr>`;
+        }).join('')}</tbody>
+    </table>`;
+}
+
+// ══════════════════════════════════════
+//  REINCIDÊNCIAS
+// ══════════════════════════════════════
+
+function renderReincidencias() {
+    const bds = dadosFiltrados.filter(o => o.choices?.tipo === 'BREAK DOWN');
+
+    // Contar BDs por equipamento
+    const contagem = {};
+    bds.forEach(os => {
+        const tag = os.dados?.['i-tagm'] || 'Sem tag';
+        if (!contagem[tag]) contagem[tag] = { qtd: 0, datas: [] };
+        contagem[tag].qtd++;
+        contagem[tag].datas.push(os.dados?.['i-data'] || '');
+    });
+
+    const sorted = Object.entries(contagem).sort((a, b) => b[1].qtd - a[1].qtd).slice(0, 10);
+
+    // Chart de barras — top reincidentes
+    const labels = sorted.map(([tag]) => tag.split(' - ')[0]);
+    const values = sorted.map(([, v]) => v.qtd);
+    const cores = values.map(v => v >= 5 ? '#dc3545' : v >= 3 ? '#f59e0b' : '#22c55e');
+
+    const ctx1 = document.getElementById('chart-reincidencia').getContext('2d');
+    if (chartReincidencia) chartReincidencia.destroy();
+    chartReincidencia = new Chart(ctx1, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Nº de Break Downs',
+                data: values,
+                backgroundColor: cores,
+                borderRadius: 5,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y} BDs` } }
+            },
+            scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1, font: { family: 'IBM Plex Mono', size: 11 } }, grid: { color: '#edf1f7' } },
+                x: { ticks: { font: { family: 'IBM Plex Sans', size: 11 }, maxRotation: 30 }, grid: { display: false } }
+            }
+        }
+    });
+
+    // Chart de tendência — top 5 equipamentos ao longo do tempo
+    const top5 = sorted.slice(0, 5);
+    document.getElementById('label-equip-reinc').textContent = `Top ${top5.length} equipamentos`;
+
+    // Pegar todos os meses/semanas com dados de BD
+    const todasDatas = bds.map(o => {
+        const d = o.dados?.['i-data'] || '';
+        if (periodoCurrent === 'semana' || periodoCurrent === 'mes') return d.substring(0,10);
+        if (periodoCurrent === 'trimestre') {
+            const dt = new Date(d+'T00:00:00');
+            return `${dt.getFullYear()}-S${String(semanaDoAno(d)).padStart(2,'0')}`;
+        }
+        return d.substring(0,7);
+    }).filter(Boolean);
+    const periodos = [...new Set(todasDatas)].sort();
+
+    const mesesLabels = periodos.map(l => {
+        if (l.includes('-S')) return l.replace(/\d{4}-/,'');
+        if (l.length === 7) return ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][parseInt(l.split('-')[1])-1]+'/'+l.split('-')[0].slice(2);
+        return `${l.split('-')[2]}/${l.split('-')[1]}`;
+    });
+
+    const paleta = ['#dc3545','#f59e0b','#8b5cf6','#003366','#06b6d4'];
+    const datasets = top5.map(([tag, v], idx) => {
+        const cod = tag.split(' - ')[0];
+        const dataPorPeriodo = {};
+        v.datas.forEach(d => {
+            let chave;
+            if (periodoCurrent === 'semana' || periodoCurrent === 'mes') chave = d.substring(0,10);
+            else if (periodoCurrent === 'trimestre') {
+                const dt = new Date(d+'T00:00:00');
+                chave = `${dt.getFullYear()}-S${String(semanaDoAno(d)).padStart(2,'0')}`;
+            } else chave = d.substring(0,7);
+            dataPorPeriodo[chave] = (dataPorPeriodo[chave] || 0) + 1;
+        });
+        return {
+            label: cod,
+            data: periodos.map(p => dataPorPeriodo[p] || 0),
+            borderColor: paleta[idx],
+            backgroundColor: paleta[idx] + '22',
+            borderWidth: 2,
+            pointRadius: 4,
+            tension: 0.3,
+            fill: false
+        };
+    });
+
+    const ctx2 = document.getElementById('chart-reinc-tendencia').getContext('2d');
+    if (chartReincTendencia) chartReincTendencia.destroy();
+    chartReincTendencia = new Chart(ctx2, {
+        type: 'line',
+        data: { labels: mesesLabels, datasets },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { font: { family: 'IBM Plex Sans', size: 11 }, boxWidth: 12 } },
+                tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y} BD` } }
+            },
+            scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1, font: { family: 'IBM Plex Mono', size: 11 } }, grid: { color: '#edf1f7' } },
+                x: { ticks: { font: { family: 'IBM Plex Mono', size: 10 }, maxRotation: 30 }, grid: { display: false } }
+            }
+        }
+    });
 }
 
 window.onload = () => {
