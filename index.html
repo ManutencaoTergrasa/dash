@@ -215,11 +215,11 @@ body {
 .filtros-bar {
     background: var(--branco);
     border-radius: var(--r);
-    padding: 16px 20px;
+    padding: 12px 16px;
     margin-bottom: 24px;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     flex-wrap: wrap;
     box-shadow: 0 1px 8px rgba(0,40,100,0.08);
     border: 1px solid var(--borda);
@@ -258,15 +258,15 @@ body {
 }
 .filtro-sep { width: 1px; height: 28px; background: var(--borda); }
 .filtro-select {
-    padding: 8px 12px;
+    padding: 7px 10px;
     border: 1.5px solid var(--borda);
     border-radius: 7px;
-    font-size: 13px;
+    font-size: 12px;
     font-family: var(--sans);
     color: var(--texto);
     background: var(--branco);
     cursor: pointer;
-    min-width: 140px;
+    min-width: 120px;
 }
 .filtro-select:focus { outline: none; border-color: var(--azul); }
 
@@ -550,6 +550,18 @@ body {
 .chip-rearme { background: #fffbeb; color: #92400e; border-color: #fcd34d; }
 .chip-outros { background: var(--cinza-bg); color: var(--muted); border-color: var(--borda); }
 
+.drop-item {
+    padding: 10px 14px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: var(--sans);
+    color: var(--texto);
+    border-bottom: 1px solid var(--cinza-bg);
+}
+.drop-item:hover { background: var(--azul-light); }
+.drop-item-active { background: var(--azul-light); color: var(--azul); font-weight: 700; }
+.drop-item:last-child { border-bottom: none; }
+
 /* ── RESPONSIVE ── */
 @media (max-width: 900px) {
     .secoes-grid { grid-template-columns: 1fr; }
@@ -648,11 +660,22 @@ body {
             <option value="MEC">Mecânica</option>
         </select>
 
-        <select class="filtro-select" id="filtro-setor" onchange="aplicarFiltros()">
+        <select class="filtro-select" id="filtro-setor" onchange="aoMudarSetor()">
             <option value="">Todos os setores</option>
         </select>
 
-        <button class="btn-atualizar" id="btn-atualizar" onclick="carregarDados()">
+        <div class="filtro-sep"></div>
+
+        <div style="position:relative; flex:1; min-width:140px; max-width:220px;">
+            <input type="text" id="input-busca-equip-top" placeholder="🔍 Equipamento..." autocomplete="off"
+                class="filtro-select"
+                style="width:100%; cursor:pointer;"
+                oninput="filtrarDropdownEquipTop()" onfocus="abrirDropdownEquipTop()">
+            <div id="dropdown-equip-top" style="display:none; position:absolute; top:calc(100% + 4px); left:0; background:white; border:1.5px solid var(--borda); border-radius:7px; box-shadow:0 4px 16px rgba(0,40,100,0.12); max-height:260px; overflow-y:auto; z-index:300; min-width:240px;"></div>
+        </div>
+        <input type="hidden" id="filtro-equip-top" value="">
+
+        <button class="btn-atualizar" id="btn-atualizar" onclick="carregarDados()" style="margin-left:auto; white-space:nowrap; flex-shrink:0;">
             🔄 Atualizar
         </button>
     </div>
@@ -711,20 +734,6 @@ body {
             <div class="kpi-valor" id="kpi-mec">—</div>
             <div class="kpi-label">Mecânica</div>
             <div class="kpi-sub" id="kpi-mec-sub"></div>
-        </div>
-    </div>
-
-    <div class="secoes-grid">
-        <div class="card secao-full">
-            <div class="card-header">
-                <div class="card-title">📈 Evolução de OS por Período</div>
-                <div id="label-periodo-chart" style="font-size:11px; color:var(--muted); font-weight:600;"></div>
-            </div>
-            <div class="card-body">
-                <div class="chart-wrap" style="height:220px;">
-                    <canvas id="chart-linha"></canvas>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -939,6 +948,101 @@ body {
         </div>
     </div>
 
+    <!-- ═══ SEÇÃO IRREGULARIDADES ═══ -->
+    <div style="margin: 32px 0 20px; display:flex; align-items:center; gap:12px;">
+        <div style="flex:1; height:1px; background:var(--borda);"></div>
+        <div style="background:#f59e0b; color:white; padding:6px 18px; border-radius:20px; font-size:12px; font-weight:700; letter-spacing:1px; white-space:nowrap;">
+            ⚠️ RAIO-X DE IRREGULARIDADES POR EQUIPAMENTO
+        </div>
+        <div style="flex:1; height:1px; background:var(--borda);"></div>
+    </div>
+
+    <!-- Seletor de equipamento -->
+    <div style="background:white; border-radius:var(--r); border:1px solid var(--borda); padding:16px 20px; margin-bottom:20px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; box-shadow:0 1px 8px rgba(0,40,100,0.08);">
+        <span class="filtro-label">Equipamento</span>
+        <div style="position:relative; min-width:300px;">
+            <input type="text" id="input-busca-equip-irr" placeholder="🔍 Digite para buscar equipamento..." autocomplete="off"
+                style="width:100%; padding:8px 12px; border:1.5px solid var(--borda); border-radius:7px; font-size:13px; font-family:var(--sans); color:var(--texto); background:var(--branco);"
+                oninput="filtrarOpcoesEquip()" onfocus="abrirDropdownEquip()">
+            <div id="dropdown-equip-irr" style="display:none; position:absolute; top:100%; left:0; right:0; background:white; border:1.5px solid var(--borda); border-radius:7px; box-shadow:0 4px 16px rgba(0,40,100,0.12); max-height:240px; overflow-y:auto; z-index:200; margin-top:4px;"></div>
+        </div>
+        <button onclick="limparFiltroEquip()" style="padding:8px 12px; background:var(--cinza-bg); color:var(--muted); border:1.5px solid var(--borda); border-radius:7px; font-size:12px; font-weight:600; cursor:pointer;">✕ Limpar</button>
+        <span style="font-size:12px; color:var(--muted);" id="label-irr-resumo"></span>
+        <!-- select hidden, usado internamente -->
+        <select id="filtro-equip-irr" style="display:none;"></select>
+    </div>
+
+    <!-- KPIs do equipamento selecionado -->
+    <div class="kpi-grid" style="margin-bottom:20px;" id="kpi-irr-grid">
+        <div class="kpi-card ambar">
+            <div class="kpi-icon">⚠️</div>
+            <div class="kpi-valor" id="kpi-irr-total">—</div>
+            <div class="kpi-label">Total Irregularidades</div>
+            <div class="kpi-sub" id="kpi-irr-total-sub"></div>
+        </div>
+        <div class="kpi-card vermelho">
+            <div class="kpi-icon">🔁</div>
+            <div class="kpi-valor" id="kpi-irr-tipos">—</div>
+            <div class="kpi-label">Tipos Distintos</div>
+            <div class="kpi-sub">códigos únicos de falha</div>
+        </div>
+        <div class="kpi-card azul">
+            <div class="kpi-icon">🏆</div>
+            <div class="kpi-valor" id="kpi-irr-principal">—</div>
+            <div class="kpi-label">Principal Falha</div>
+            <div class="kpi-sub" id="kpi-irr-principal-sub"></div>
+        </div>
+        <div class="kpi-card verde">
+            <div class="kpi-icon">🏭</div>
+            <div class="kpi-valor" id="kpi-irr-equips">—</div>
+            <div class="kpi-label">Equipamentos c/ falha</div>
+            <div class="kpi-sub">com ao menos 1 irregularidade</div>
+        </div>
+    </div>
+
+    <div class="secoes-grid" style="margin-bottom:20px;">
+        <!-- Gráfico de barras das irregularidades do equipamento -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">📊 Irregularidades — Frequência</div>
+                <span style="font-size:11px; color:var(--muted);" id="label-chart-irr"></span>
+            </div>
+            <div class="card-body">
+                <div class="chart-wrap" style="height:300px;">
+                    <canvas id="chart-irregularidades"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ranking detalhado -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">🔍 Ranking de Falhas</div>
+                <span style="font-size:11px; color:var(--muted);" id="label-ranking-irr"></span>
+            </div>
+            <div class="card-body" style="padding:0;">
+                <div id="tabela-irr-ranking">
+                    <div class="loading-state"><div class="spinner"></div>Carregando...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela completa: todos equipamentos × suas irregularidades -->
+    <div class="secoes-grid" style="margin-bottom:20px;">
+        <div class="card secao-full">
+            <div class="card-header">
+                <div class="card-title">🏭 Levantamento Geral — Todos os Equipamentos</div>
+                <span style="font-size:11px; color:var(--muted);">qual irregularidade mais aparece em cada máquina</span>
+            </div>
+            <div class="card-body" style="padding:0;">
+                <div id="tabela-irr-geral">
+                    <div class="loading-state"><div class="spinner"></div>Carregando...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <div id="usuarios">
@@ -973,12 +1077,12 @@ let todosOsDados = [];
 let dadosFiltrados = [];
 let periodoCurrent = 'mes';
 
-let chartLinha      = null;
 let chartTipos      = null;
 let chartSetor      = null;
 let chartTempoLinha = null;
 let chartReincidencia = null;
 let chartReincTendencia = null;
+let chartIrregularidades = null;
 
 // ══════════════════════════════════════
 //  LOGIN E GERENCIAMENTO (SUPABASE)
@@ -1232,12 +1336,55 @@ function preencherFiltroSetores() {
         sel.appendChild(opt);
     });
     sel.value = val;
+    preencherDropdownEquipTop();
+}
+
+function aoMudarSetor() {
+    // Limpa equipamento ao trocar setor
+    document.getElementById('filtro-equip-top').value = '';
+    document.getElementById('input-busca-equip-top').value = '';
+    preencherDropdownEquipTop();
+    aplicarFiltros();
+}
+
+function preencherDropdownEquipTop() {
+    const setor = document.getElementById('filtro-setor').value;
+    const fonte = setor
+        ? todosOsDados.filter(o => o.dados?.['i-setor'] === setor)
+        : todosOsDados;
+    const tags = [...new Set(fonte.map(o => o.dados?.['i-tagm']).filter(Boolean))].sort();
+    window._equipTopOpcoes = tags.map(t => ({ tag: t.split(' - ')[0].trim(), full: t }));
+}
+
+function abrirDropdownEquipTop() {
+    filtrarDropdownEquipTop();
+}
+
+function filtrarDropdownEquipTop() {
+    const busca = document.getElementById('input-busca-equip-top').value.toLowerCase();
+    const drop  = document.getElementById('dropdown-equip-top');
+    const opcoes = window._equipTopOpcoes || [];
+    const filtradas = busca ? opcoes.filter(o => o.full.toLowerCase().includes(busca)) : opcoes;
+
+    const selAtual = document.getElementById('filtro-equip-top').value;
+    if (filtradas.length === 0) {
+        drop.innerHTML = '<div style="padding:12px 16px;color:var(--muted);font-size:12px;">Nenhum equipamento encontrado</div>';
+    } else {
+        drop.innerHTML = [
+            `<div class="drop-item ${selAtual==='' ? 'drop-item-active':''}" data-source="top" data-tag="" data-label="">— Todos os equipamentos —</div>`,
+            ...filtradas.map(o =>
+                `<div class="drop-item ${selAtual===o.full ? 'drop-item-active':''}" data-source="top" data-tag="${o.full}" data-label="${o.tag}">${o.tag}</div>`
+            )
+        ].join('');
+    }
+    drop.style.display = filtradas.length > 0 || busca ? 'block' : 'none';
 }
 
 function aplicarFiltros() {
-    const tipo  = document.getElementById('filtro-tipo').value;
-    const esp   = document.getElementById('filtro-esp').value;
-    const setor = document.getElementById('filtro-setor').value;
+    const tipo   = document.getElementById('filtro-tipo').value;
+    const esp    = document.getElementById('filtro-esp').value;
+    const setor  = document.getElementById('filtro-setor').value;
+    const equip  = document.getElementById('filtro-equip-top').value;
     const inicio = dataInicioPeriodo(periodoCurrent);
 
     dadosFiltrados = todosOsDados.filter(os => {
@@ -1249,6 +1396,7 @@ function aplicarFiltros() {
         if (tipo  && os.choices?.tipo  !== tipo)  return false;
         if (esp   && os.choices?.esp   !== esp)   return false;
         if (setor && os.dados?.['i-setor'] !== setor) return false;
+        if (equip && os.dados?.['i-tagm']  !== equip) return false;
         return true;
     });
 
@@ -1257,7 +1405,6 @@ function aplicarFiltros() {
 
 function renderizarTudo() {
     renderKPIs();
-    renderChartLinha();
     renderChartTipos();
     renderChartSetor();
     renderTabelaEquip();
@@ -1265,6 +1412,7 @@ function renderizarTudo() {
     renderTempoParada();
     renderMTBF();
     renderReincidencias();
+    renderIrregularidades();
 }
 
 function renderKPIs() {
@@ -1300,52 +1448,6 @@ function renderKPIs() {
 
     const nomePeriodo = { semana:'esta semana', mes:'este mês', trimestre:'este trimestre', ano:'este ano', tudo:'no total' };
     document.getElementById('kpi-total-sub').textContent = nomePeriodo[periodoCurrent] || '';
-}
-
-function renderChartLinha() {
-    const grupos = agruparPorPeriodo(dadosFiltrados, periodoCurrent);
-    const labels = Object.keys(grupos).sort();
-    const values = labels.map(l => grupos[l]);
-
-    const labelsFormatados = labels.map(l => {
-        if (l.includes('-S')) return l; 
-        if (l.length === 7) { 
-            const [y, m] = l.split('-');
-            const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-            return meses[parseInt(m)-1] + '/' + y.slice(2);
-        }
-        const [y,m,d] = l.split('-');
-        return `${d}/${m}`;
-    });
-
-    const labelMap = { semana:'dias da semana', mes:'dias do mês', trimestre:'semanas', ano:'meses', tudo:'meses' };
-    document.getElementById('label-periodo-chart').textContent = labelMap[periodoCurrent] || '';
-
-    const ctx = document.getElementById('chart-linha').getContext('2d');
-    if (chartLinha) chartLinha.destroy();
-    chartLinha = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labelsFormatados,
-            datasets: [{
-                label: 'OS',
-                data: values,
-                backgroundColor: 'rgba(0,51,102,0.15)',
-                borderColor: '#003366',
-                borderWidth: 2,
-                borderRadius: 4,
-                tension: 0.4
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                y: { beginAtZero: true, ticks: { stepSize: 1, font: { family: 'IBM Plex Mono', size: 11 } }, grid: { color: '#edf1f7' } },
-                x: { ticks: { font: { family: 'IBM Plex Mono', size: 10 }, maxRotation: 45 }, grid: { display: false } }
-            }
-        }
-    });
 }
 
 function renderChartTipos() {
@@ -1821,6 +1923,261 @@ function renderReincidencias() {
             }
         }
     });
+}
+
+// ══════════════════════════════════════
+//  IRREGULARIDADES
+// ══════════════════════════════════════
+
+// ── Busca de equipamento com dropdown ──
+let _equipOpcoes = []; // { tag, label }
+
+function abrirDropdownEquip() {
+    filtrarOpcoesEquip();
+    document.getElementById('dropdown-equip-irr').style.display = 'block';
+}
+
+function fecharDropdownEquip() {
+    document.getElementById('dropdown-equip-irr').style.display = 'none';
+}
+
+// Delegação de clique no dropdown — evita problema de onblur fechar antes do clique
+document.addEventListener('click', function(e) {
+    // Dropdown de irregularidades (seção de baixo)
+    const drop = document.getElementById('dropdown-equip-irr');
+    const input = document.getElementById('input-busca-equip-irr');
+
+    // Dropdown de equipamento do topo
+    const dropTop  = document.getElementById('dropdown-equip-top');
+    const inputTop = document.getElementById('input-busca-equip-top');
+
+    const item = e.target.closest('.drop-item');
+    if (item) {
+        const source = item.dataset.source;
+        if (source === 'top') {
+            const tag   = item.dataset.tag;
+            const label = item.dataset.label;
+            document.getElementById('filtro-equip-top').value = tag;
+            document.getElementById('input-busca-equip-top').value = label;
+            if (dropTop) dropTop.style.display = 'none';
+            aplicarFiltros();
+            return;
+        }
+        // dropdown de irregularidades
+        if (drop && drop.contains(item)) {
+            selecionarEquip(item.dataset.tag, item.dataset.label);
+            return;
+        }
+    }
+
+    // Fechar dropdowns ao clicar fora
+    if (drop && !drop.contains(e.target) && e.target !== input) drop.style.display = 'none';
+    if (dropTop && !dropTop.contains(e.target) && e.target !== inputTop) dropTop.style.display = 'none';
+});
+
+function filtrarOpcoesEquip() {
+    const busca = document.getElementById('input-busca-equip-irr').value.toLowerCase();
+    const drop = document.getElementById('dropdown-equip-irr');
+    const filtradas = busca
+        ? _equipOpcoes.filter(o => o.label.toLowerCase().includes(busca))
+        : _equipOpcoes;
+
+    const selAtual = document.getElementById('filtro-equip-irr').value;
+
+    if (filtradas.length === 0) {
+        drop.innerHTML = '<div style="padding:12px 16px;color:var(--muted);font-size:12px;">Nenhum equipamento encontrado</div>';
+    } else {
+        drop.innerHTML = [
+            `<div class="drop-item ${selAtual==='' ? 'drop-item-active' : ''}" data-tag="" data-label="— Todos os equipamentos —">— Todos os equipamentos —</div>`,
+            ...filtradas.map(o =>
+                `<div class="drop-item ${selAtual===o.tag ? 'drop-item-active' : ''}" data-tag="${o.tag}" data-label="${o.label}">${o.label}</div>`
+            )
+        ].join('');
+    }
+    drop.style.display = 'block';
+}
+
+function selecionarEquip(tag, label) {
+    document.getElementById('filtro-equip-irr').value = tag;
+    document.getElementById('input-busca-equip-irr').value = tag ? label : '';
+    document.getElementById('dropdown-equip-irr').style.display = 'none';
+    renderIrregularidades();
+}
+
+function limparFiltroEquip() {
+    document.getElementById('filtro-equip-irr').value = '';
+    document.getElementById('input-busca-equip-irr').value = '';
+    renderIrregularidades();
+}
+
+function extrairIrregularidades(os) {
+    const irrs = [];
+    for (let i = 1; i <= 3; i++) {
+        const val = os.dados?.[`slot-input-prob-${i}`];
+        if (!val || !val.trim()) continue;
+        const cod = val.includes(' - ') ? val.split(' - ')[0].trim() : val.trim();
+        const desc = val.includes(' - ') ? val.substring(val.indexOf(' - ') + 3).trim() : val.trim();
+        irrs.push({ cod, desc, full: val.trim() });
+    }
+    return irrs;
+}
+
+function renderIrregularidades() {
+    // Montar mapa: equipamento → { cod → { desc, qtd } }
+    const equipMap = {};
+    dadosFiltrados.forEach(os => {
+        const tag = os.dados?.['i-tagm'] || 'Sem tag';
+        const tagCurta = tag.split(' - ')[0].trim();
+        const irrs = extrairIrregularidades(os);
+        if (irrs.length === 0) return;
+        if (!equipMap[tagCurta]) equipMap[tagCurta] = {};
+        irrs.forEach(({ cod, desc }) => {
+            if (!equipMap[tagCurta][cod]) equipMap[tagCurta][cod] = { desc, qtd: 0 };
+            equipMap[tagCurta][cod].qtd++;
+        });
+    });
+
+    // Preencher opções do dropdown e o select hidden
+    const sel = document.getElementById('filtro-equip-irr');
+    const selAtual = sel.value;
+    const equipsSorted = Object.keys(equipMap).sort();
+    _equipOpcoes = equipsSorted.map(tag => {
+        const total = Object.values(equipMap[tag]).reduce((s,v)=>s+v.qtd,0);
+        return { tag, label: `${tag}  (${total} irregularidades)` };
+    });
+    sel.innerHTML = '<option value="">— Todos os equipamentos —</option>';
+    _equipOpcoes.forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o.tag; opt.textContent = o.label;
+        sel.appendChild(opt);
+    });
+    if (selAtual) sel.value = selAtual;
+
+    const equipFiltro = sel.value;
+
+    // Dados a exibir agregados
+    const dadosAgregados = {};
+    const equipsSelecionados = equipFiltro ? [equipFiltro] : equipsSorted;
+    equipsSelecionados.forEach(tag => {
+        if (!equipMap[tag]) return;
+        Object.entries(equipMap[tag]).forEach(([cod, v]) => {
+            if (!dadosAgregados[cod]) dadosAgregados[cod] = { desc: v.desc, qtd: 0 };
+            dadosAgregados[cod].qtd += v.qtd;
+        });
+    });
+
+    const totalIrrs     = Object.values(dadosAgregados).reduce((s,v)=>s+v.qtd, 0);
+    const tiposDistintos = Object.keys(dadosAgregados).length;
+    const equipsComFalha = equipsSorted.length;
+    const principal     = Object.entries(dadosAgregados).sort((a,b)=>b[1].qtd-a[1].qtd)[0];
+
+    // KPIs
+    document.getElementById('kpi-irr-total').textContent     = totalIrrs || '—';
+    document.getElementById('kpi-irr-total-sub').textContent  = equipFiltro || 'todos os equipamentos';
+    document.getElementById('kpi-irr-tipos').textContent      = tiposDistintos || '—';
+    document.getElementById('kpi-irr-principal').textContent  = principal ? principal[0] : '—';
+    document.getElementById('kpi-irr-principal-sub').textContent = principal ? `${principal[1].qtd}× · ${principal[1].desc.substring(0,28)}` : '';
+    document.getElementById('kpi-irr-equips').textContent     = equipsComFalha;
+    document.getElementById('label-irr-resumo').textContent   = equipFiltro
+        ? `Raio-X de: ${equipFiltro}`
+        : `${equipsComFalha} equipamentos com irregularidades registradas`;
+
+    // ── Chart barras ──
+    const topIrrs = Object.entries(dadosAgregados).sort((a,b)=>b[1].qtd-a[1].qtd).slice(0,12);
+    document.getElementById('label-chart-irr').textContent = equipFiltro || 'todos os equipamentos';
+
+    const labels = topIrrs.map(([cod, v]) => cod + (v.desc ? ' · ' + v.desc.substring(0,22) : ''));
+    const values = topIrrs.map(([,v]) => v.qtd);
+    const cores  = values.map((v, i) => i===0 ? '#dc3545' : i<=2 ? '#f59e0b' : `rgba(0,51,102,${0.8-i*0.05})`);
+
+    const ctx = document.getElementById('chart-irregularidades').getContext('2d');
+    if (chartIrregularidades) chartIrregularidades.destroy();
+    chartIrregularidades = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets: [{ data: values, backgroundColor: cores, borderRadius: 4 }] },
+        options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.x}× ocorrências` } } },
+            scales: {
+                x: { beginAtZero: true, ticks: { stepSize: 1, font: { family: 'IBM Plex Mono', size: 10 } }, grid: { color: '#edf1f7' } },
+                y: { ticks: { font: { family: 'IBM Plex Sans', size: 10 } }, grid: { display: false } }
+            }
+        }
+    });
+
+    // ── Ranking detalhado ──
+    const wrapRanking = document.getElementById('tabela-irr-ranking');
+    document.getElementById('label-ranking-irr').textContent = equipFiltro || 'todos os equipamentos';
+    if (topIrrs.length === 0) {
+        wrapRanking.innerHTML = '<div class="empty-state">📭 Nenhuma irregularidade registrada</div>';
+    } else {
+        const maxQtd = topIrrs[0][1].qtd;
+        wrapRanking.innerHTML = `
+        <table class="tabela-equip">
+            <thead><tr><th>#</th><th>Cód.</th><th>Descrição</th><th style="text-align:center">Qtd</th><th style="min-width:80px">Frequência</th></tr></thead>
+            <tbody>${topIrrs.map(([cod, v], i) => {
+                const pct = Math.round(v.qtd/maxQtd*100);
+                const cor = i===0 ? '#dc3545' : i<=2 ? '#f59e0b' : 'var(--azul)';
+                const medal = i===0 ? '🥇' : i===1 ? '🥈' : i===2 ? '🥉' : `${i+1}`;
+                return `<tr>
+                    <td style="text-align:center;font-size:12px">${medal}</td>
+                    <td><span class="equip-tag" style="background:#fff7ed;color:#92400e">${cod}</span></td>
+                    <td style="font-size:11px;color:var(--muted)">${v.desc.substring(0,35)}</td>
+                    <td style="text-align:center;font-family:var(--mono);font-weight:700;color:${cor}">${v.qtd}×</td>
+                    <td>
+                        <div class="bar-mini"><div class="bar-mini-fill" style="width:${pct}%;background:${cor}"></div></div>
+                        <div style="font-size:10px;color:var(--muted);margin-top:2px">${totalIrrs > 0 ? Math.round(v.qtd/totalIrrs*100) : 0}% do total</div>
+                    </td>
+                </tr>`;
+            }).join('')}</tbody>
+        </table>`;
+    }
+
+    // ── Tabela geral: todos equipamentos × suas irregularidades ──
+    const wrapGeral = document.getElementById('tabela-irr-geral');
+    if (Object.keys(equipMap).length === 0) {
+        wrapGeral.innerHTML = '<div class="empty-state">📭 Nenhuma irregularidade registrada</div>';
+        return;
+    }
+
+    // Top 8 códigos mais frequentes globalmente para colunas
+    const todosCodsFreq = [...new Set(Object.values(equipMap).flatMap(irrs => Object.keys(irrs)))]
+        .sort((a,b) => {
+            const tA = equipsSorted.reduce((s,e)=>s+(equipMap[e]?.[a]?.qtd||0),0);
+            const tB = equipsSorted.reduce((s,e)=>s+(equipMap[e]?.[b]?.qtd||0),0);
+            return tB - tA;
+        }).slice(0,8);
+
+    const equipsOrdenados = Object.entries(equipMap)
+        .map(([tag, irrs]) => ({ tag, total: Object.values(irrs).reduce((s,v)=>s+v.qtd,0), irrs }))
+        .sort((a,b) => b.total - a.total);
+
+    wrapGeral.innerHTML = `
+    <div style="overflow-x:auto;">
+    <table class="tabela-equip">
+        <thead><tr>
+            <th>#</th><th>Equipamento</th><th style="text-align:center">Total Irr.</th>
+            ${todosCodsFreq.map(cod => `<th style="text-align:center;font-size:10px;white-space:nowrap">${cod}</th>`).join('')}
+            <th style="min-width:80px">Volume</th>
+        </tr></thead>
+        <tbody>${equipsOrdenados.map(({ tag, total, irrs }, i) => {
+            const maxTotal = equipsOrdenados[0].total;
+            const pct = Math.round(total/maxTotal*100);
+            return `<tr>
+                <td style="color:var(--muted);font-size:11px;font-family:var(--mono)">${i+1}</td>
+                <td><span class="equip-tag">${tag}</span></td>
+                <td style="text-align:center;font-family:var(--mono);font-weight:700;color:#92400e">${total}</td>
+                ${todosCodsFreq.map(cod => {
+                    const qtd = irrs[cod]?.qtd || 0;
+                    return `<td style="text-align:center">${qtd > 0
+                        ? `<span class="badge" style="background:#fff7ed;color:#92400e;font-weight:700">${qtd}</span>`
+                        : '<span style="color:var(--borda)">—</span>'}</td>`;
+                }).join('')}
+                <td><div class="bar-mini"><div class="bar-mini-fill" style="width:${pct}%;background:#f59e0b"></div></div></td>
+            </tr>`;
+        }).join('')}</tbody>
+    </table>
+    </div>`;
 }
 
 window.onload = () => {
