@@ -35,11 +35,22 @@ box-shadow:0 10px 30px rgba(0,0,0,0.2);
 width:100%;
 padding:10px;
 margin:8px 0;
+border: 1px solid #ddd;
+border-radius: 4px;
 }
 
 button{
 padding:10px;
 cursor:pointer;
+border: none;
+border-radius: 4px;
+background: #003366;
+color: white;
+font-weight: bold;
+}
+
+button:hover {
+    background: #004080;
 }
 
 /* DASHBOARD */
@@ -54,15 +65,32 @@ padding:0;
 display:none;
 margin-top:20px;
 border-top:1px solid #ccc;
-padding-top:20px;
+padding:20px;
+background: white;
+border-radius: 8px;
+max-width: 500px;
+margin-left: auto;
+margin-right: auto;
+}
+
+.user-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.btn-excluir {
+    background: #dc3545;
+    padding: 5px 10px;
+    font-size: 11px;
 }
 
 </style>
 </head>
 
 <body>
-
-<!-- LOGIN -->
 
 <div id="loginTela">
 
@@ -73,15 +101,13 @@ padding-top:20px;
 <input id="user" placeholder="Usuário">
 <input id="pass" type="password" placeholder="Senha">
 
-<button onclick="login()">Entrar</button>
+<button id="btnLogin" onclick="login()">Entrar</button>
 
-<p id="erro" style="color:red"></p>
-
-</div>
+<p id="erro" style="color:red; font-size: 12px; margin-top: 10px;"></p>
 
 </div>
 
-<!-- DASHBOARD -->
+</div>
 
 <div id="dashboard">
 
@@ -589,7 +615,6 @@ body {
 
 <div class="main">
 
-    <!-- FILTROS -->
     <div class="filtros-bar">
         <span class="filtro-label">Período</span>
         <div class="filtro-btn-group">
@@ -629,7 +654,6 @@ body {
         </button>
     </div>
 
-    <!-- KPIs -->
     <div class="kpi-grid">
         <div class="kpi-card azul">
             <div class="kpi-icon">📋</div>
@@ -669,7 +693,6 @@ body {
         </div>
     </div>
 
-    <!-- LINHA 1: Evolução temporal + Pizza tipos -->
     <div class="secoes-grid">
         <div class="card secao-full">
             <div class="card-header">
@@ -684,7 +707,6 @@ body {
         </div>
     </div>
 
-    <!-- LINHA 2: Tipos + Especialidade -->
     <div class="secoes-grid" style="margin-bottom:20px;">
         <div class="card">
             <div class="card-header">
@@ -709,7 +731,6 @@ body {
         </div>
     </div>
 
-    <!-- LINHA 3: Ranking equipamentos + Timeline -->
     <div class="secoes-grid">
         <div class="card">
             <div class="card-header">
@@ -737,7 +758,6 @@ body {
         </div>
     </div>
 
-    <!-- DIVISOR TEMPO DE PARADA -->
     <div style="margin: 32px 0 20px; display:flex; align-items:center; gap:12px;">
         <div style="flex:1; height:1px; background:var(--borda);"></div>
         <div style="background:var(--vermelho); color:white; padding:6px 18px; border-radius:20px; font-size:12px; font-weight:700; letter-spacing:1px; white-space:nowrap;">
@@ -746,7 +766,6 @@ body {
         <div style="flex:1; height:1px; background:var(--borda);"></div>
     </div>
 
-    <!-- KPIs TEMPO PARADA -->
     <div class="kpi-grid" style="margin-bottom:20px;">
         <div class="kpi-card vermelho">
             <div class="kpi-icon">🔴</div>
@@ -774,7 +793,6 @@ body {
         </div>
     </div>
 
-    <!-- LINHA 4: Evolução tempo parada + Ranking por equipamento -->
     <div class="secoes-grid" style="margin-bottom:20px;">
         <div class="card secao-full">
             <div class="card-header">
@@ -818,6 +836,25 @@ body {
 
 </div>
 
+<div id="usuarios">
+
+    <h3>Criar novo usuário</h3>
+    <p style="font-size: 11px; color: #666; margin-bottom: 10px;">Novos usuários não terão acesso à tela de usuários.</p>
+    
+    <input id="novoUser" placeholder="Usuário">
+    <input id="novaSenha" type="text" placeholder="Senha">
+    
+    <button onclick="criarUsuario()">Criar</button>
+    
+    <h3 style="margin-top: 20px;">Usuários cadastrados</h3>
+    
+    <div id="listaUsuarios"></div>
+    <button onclick="abrirUsuarios()" style="margin-top: 20px; background: #666;">Fechar</button>
+
+</div>
+
+</div>
+
 <script>
 // ══════════════════════════════════════
 //  CONFIG SUPABASE
@@ -825,8 +862,9 @@ body {
 const SUPABASE_URL   = "https://wflaneoglydtgieytqgy.supabase.co";
 const SUPABASE_KEY   = "sb_publishable_DGPH6FHxarnzo767CGyx_Q_MykoE5sf";
 const SUPABASE_TABLE = "os";
+const TABLE_USERS    = "usuarios_dashboard"; // Nova tabela de logins
 
-let todosOsDados = []; // cache completo
+let todosOsDados = []; 
 let dadosFiltrados = [];
 let periodoCurrent = 'mes';
 
@@ -836,8 +874,131 @@ let chartSetor      = null;
 let chartTempoLinha = null;
 
 // ══════════════════════════════════════
-//  UTILIDADES DE DATA
+//  LOGIN E GERENCIAMENTO (SUPABASE)
 // ══════════════════════════════════════
+
+async function login() {
+    const u = document.getElementById("user").value;
+    const p = document.getElementById("pass").value;
+    const erroEl = document.getElementById("erro");
+    const btn = document.getElementById("btnLogin");
+
+    if(!u || !p) { erroEl.innerText = "Preencha tudo"; return; }
+
+    btn.disabled = true;
+    btn.innerText = "Verificando...";
+
+    try {
+        const url = `${SUPABASE_URL}/rest/v1/${TABLE_USERS}?usuario=eq.${u}&senha=eq.${p}&select=*`;
+        const resp = await fetch(url, {
+            headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+        });
+
+        const users = await resp.json();
+
+        if (users.length > 0) {
+            const user = users[0];
+            sessionStorage.setItem("logado", user.usuario);
+            sessionStorage.setItem("admin", user.is_admin ? "true" : "false");
+
+            document.getElementById("loginTela").style.display = "none";
+            document.getElementById("dashboard").style.display = "block";
+
+            if (user.is_admin) {
+                document.getElementById("btnUsuarios").style.display = "inline-flex";
+                listarUsuarios();
+            }
+            
+            carregarDados();
+        } else {
+            erroEl.innerText = "Usuário ou senha incorretos";
+        }
+    } catch(e) {
+        erroEl.innerText = "Erro ao conectar ao banco";
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "Entrar";
+    }
+}
+
+function logout(){
+    sessionStorage.clear();
+    location.reload();
+}
+
+function abrirUsuarios(){
+    const div = document.getElementById("usuarios");
+    div.style.display = div.style.display === "block" ? "none" : "block";
+}
+
+async function criarUsuario(){
+    const u = document.getElementById("novoUser").value;
+    const p = document.getElementById("novaSenha").value;
+
+    if(!u || !p) { alert("Preencha usuário e senha"); return; }
+
+    try {
+        const resp = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE_USERS}`, {
+            method: 'POST',
+            headers: { 
+                "apikey": SUPABASE_KEY, 
+                "Authorization": `Bearer ${SUPABASE_KEY}`,
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal"
+            },
+            body: JSON.stringify({ usuario: u, senha: p, is_admin: false })
+        });
+
+        if(resp.ok) {
+            alert("Usuário criado!");
+            document.getElementById("novoUser").value = "";
+            document.getElementById("novaSenha").value = "";
+            listarUsuarios();
+        } else {
+            alert("Erro ao criar (usuário já existe?)");
+        }
+    } catch(e) { alert("Erro de conexão"); }
+}
+
+async function listarUsuarios(){
+    const lista = document.getElementById("listaUsuarios");
+    lista.innerHTML = "Carregando usuários...";
+
+    try {
+        const resp = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE_USERS}?select=*`, {
+            headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+        });
+        const users = await resp.json();
+
+        lista.innerHTML = "";
+        users.forEach(u => {
+            const div = document.createElement("div");
+            div.className = "user-item";
+            div.innerHTML = `
+                <span><strong>${u.usuario}</strong> ${u.is_admin ? '(Admin)' : ''}</span>
+                ${u.is_admin ? '' : `<button class="btn-excluir" onclick="removerUsuario('${u.id}')">Excluir</button>`}
+            `;
+            lista.appendChild(div);
+        });
+    } catch(e) { lista.innerHTML = "Erro ao listar"; }
+}
+
+async function removerUsuario(id){
+    if(!confirm("Deseja excluir este acesso?")) return;
+
+    try {
+        await fetch(`${SUPABASE_URL}/rest/v1/${TABLE_USERS}?id=eq.${id}`, {
+            method: 'DELETE',
+            headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+        });
+        listarUsuarios();
+    } catch(e) { alert("Erro ao remover"); }
+}
+
+// ══════════════════════════════════════
+//  RESTANTE DO CÓDIGO DA DASHBOARD
+// ══════════════════════════════════════
+
 function dataInicioPeriodo(periodo) {
     const hoje = new Date();
     switch(periodo) {
@@ -893,9 +1054,6 @@ function agruparPorPeriodo(dados, periodo) {
     return grupos;
 }
 
-// ══════════════════════════════════════
-//  CARREGAR DADOS DO SUPABASE
-// ══════════════════════════════════════
 async function carregarDados() {
     const btn = document.getElementById('btn-atualizar');
     btn.disabled = true;
@@ -949,9 +1107,6 @@ async function carregarDados() {
     }
 }
 
-// ══════════════════════════════════════
-//  FILTROS
-// ══════════════════════════════════════
 function setPeriodo(periodo, el) {
     periodoCurrent = periodo;
     document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('active'));
@@ -993,9 +1148,6 @@ function aplicarFiltros() {
     renderizarTudo();
 }
 
-// ══════════════════════════════════════
-//  RENDERIZAR TUDO
-// ══════════════════════════════════════
 function renderizarTudo() {
     renderKPIs();
     renderChartLinha();
@@ -1006,7 +1158,6 @@ function renderizarTudo() {
     renderTempoParada();
 }
 
-// ── KPIs ──
 function renderKPIs() {
     const total = dadosFiltrados.length;
     const bd    = dadosFiltrados.filter(o => o.choices?.tipo === 'BREAK DOWN').length;
@@ -1033,21 +1184,18 @@ function renderKPIs() {
     document.getElementById('kpi-total-sub').textContent = nomePeriodo[periodoCurrent] || '';
 }
 
-// ── GRÁFICO LINHA ──
 function renderChartLinha() {
     const grupos = agruparPorPeriodo(dadosFiltrados, periodoCurrent);
     const labels = Object.keys(grupos).sort();
     const values = labels.map(l => grupos[l]);
 
-    // Formata labels para exibição
     const labelsFormatados = labels.map(l => {
-        if (l.includes('-S')) return l; // semana
-        if (l.length === 7) { // YYYY-MM
+        if (l.includes('-S')) return l; 
+        if (l.length === 7) { 
             const [y, m] = l.split('-');
             const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
             return meses[parseInt(m)-1] + '/' + y.slice(2);
         }
-        // Dia
         const [y,m,d] = l.split('-');
         return `${d}/${m}`;
     });
@@ -1082,7 +1230,6 @@ function renderChartLinha() {
     });
 }
 
-// ── GRÁFICO TIPOS (rosca) ──
 function renderChartTipos() {
     const tiposMap = {};
     dadosFiltrados.forEach(o => {
@@ -1121,7 +1268,6 @@ function renderChartTipos() {
         }
     });
 
-    // Chips de resumo
     const tipoClasses = {
         'BREAK DOWN': 'chip-bd', 'CORRETIVA': 'chip-corr', 'MELHORIA': 'chip-mel',
         'INSPEÇÃO NP': 'chip-insp', 'CORSIN': 'chip-corsin', 'REARME': 'chip-rearme', 'OUTROS': 'chip-outros'
@@ -1136,7 +1282,6 @@ function renderChartTipos() {
             </div>`).join('');
 }
 
-// ── GRÁFICO SETOR (barras horizontais) ──
 function renderChartSetor() {
     const setorMap = {};
     dadosFiltrados.forEach(o => {
@@ -1172,12 +1317,11 @@ function renderChartSetor() {
     });
 }
 
-// ── TABELA EQUIPAMENTOS ──
 function renderTabelaEquip() {
     const wrap = document.getElementById('tabela-equip-wrap');
 
     if (dadosFiltrados.length === 0) {
-        wrap.innerHTML = '<div class="empty-state">📭 Nenhuma OS encontrada para o período selecionado</div>';
+        wrap.innerHTML = '<div class="empty-state">📭 Nenhuma OS encontrada</div>';
         return;
     }
 
@@ -1239,39 +1383,14 @@ function renderTabelaEquip() {
         </table>`;
 }
 
-// ── TIMELINE ──
 function renderTimeline() {
     const wrap = document.getElementById('timeline-wrap');
-
-    const recentes = [...dadosFiltrados]
-        .sort((a, b) => {
-            const da = a.dados?.['i-data'] || '';
-            const db = b.dados?.['i-data'] || '';
-            return db.localeCompare(da);
-        })
-        .slice(0, 30);
-
+    const recentes = [...dadosFiltrados].sort((a, b) => (b.dados?.['i-data'] || '').localeCompare(a.dados?.['i-data'] || '')).slice(0, 30);
     document.getElementById('label-ultimas').textContent = `${recentes.length} registros`;
+    if (recentes.length === 0) { wrap.innerHTML = '<div class="empty-state">📭 Nenhum registro</div>'; return; }
 
-    if (recentes.length === 0) {
-        wrap.innerHTML = '<div class="empty-state">📭 Nenhum registro no período</div>';
-        return;
-    }
-
-    const tipoDot = {
-        'BREAK DOWN': 'bd',
-        'CORRETIVA':  'corr',
-    };
-
-    const tipoLabel = {
-        'BREAK DOWN':  '⚡ BD',
-        'CORRETIVA':   '🔧 CORR',
-        'MELHORIA':    '⬆️ MEL',
-        'INSPEÇÃO NP': '🔍 INSP',
-        'CORSIN':      '🌪️ COR',
-        'REARME':      '🔁 REAR',
-        'OUTROS':      '📋 OUT',
-    };
+    const tipoDot = { 'BREAK DOWN': 'bd', 'CORRETIVA': 'corr' };
+    const tipoLabel = { 'BREAK DOWN': '⚡ BD', 'CORRETIVA': '🔧 CORR', 'MELHORIA': '⬆️ MEL', 'INSPEÇÃO NP': '🔍 INSP', 'CORSIN': '🌪️ COR', 'REARME': '🔁 REAR', 'OUTROS': '📋 OUT' };
 
     wrap.innerHTML = recentes.map(os => {
         const tipo  = os.choices?.tipo || 'OUTROS';
@@ -1282,28 +1401,10 @@ function renderTimeline() {
         const hora  = os.dados?.['i-hora'] || '';
         const sol   = os.dados?.['i-sol'] || '';
         const esp   = os.choices?.esp === 'ELE' ? '🔌' : os.choices?.esp === 'MEC' ? '⚙️' : '';
-
-        return `
-        <div class="timeline-item">
-            <div class="timeline-dot ${dot}"></div>
-            <div class="timeline-info">
-                <div class="timeline-head">
-                    <span class="timeline-num">OS ${os.codfolha}</span>
-                    <span class="badge ${dot === 'bd' ? 'badge-bd' : dot === 'corr' ? 'badge-cor' : 'badge-out'}" style="font-size:10px">${tipoLabel[tipo] || tipo}</span>
-                    <span style="font-size:11px">${esp}</span>
-                </div>
-                <div class="timeline-equip">${tagCurta}</div>
-                <div class="timeline-meta">${data}${hora ? ' · ' + hora : ''}${sol ? ' · ' + sol : ''}</div>
-            </div>
-        </div>`;
+        return `<div class="timeline-item"><div class="timeline-dot ${dot}"></div><div class="timeline-info"><div class="timeline-head"><span class="timeline-num">OS ${os.codfolha}</span><span class="badge ${dot === 'bd' ? 'badge-bd' : dot === 'corr' ? 'badge-cor' : 'badge-out'}" style="font-size:10px">${tipoLabel[tipo] || tipo}</span> <span style="font-size:11px">${esp}</span></div><div class="timeline-equip">${tagCurta}</div><div class="timeline-meta">${data}${hora ? ' · ' + hora : ''}${sol ? ' · ' + sol : ''}</div></div></div>`;
     }).join('');
 }
 
-// ══════════════════════════════════════
-//  TEMPO DE MÁQUINA PARADA (BREAK DOWN)
-// ══════════════════════════════════════
-
-// Calcula minutos de parada de uma OS breakdown
 function calcularMinutosParada(os) {
     if (os.choices?.tipo !== 'BREAK DOWN') return null;
     const dataIni  = os.dados?.['i-data'];
@@ -1318,407 +1419,91 @@ function calcularMinutosParada(os) {
     return min > 0 ? min : null;
 }
 
-// Formata minutos em "Xh Ymin"
 function formatarMinutos(min) {
     if (min === null || min === undefined) return '—';
-    const h = Math.floor(min / 60);
-    const m = min % 60;
-    if (h === 0) return `${m}min`;
-    if (m === 0) return `${h}h`;
-    return `${h}h ${m}min`;
+    const h = Math.floor(min / 60); const m = min % 60;
+    if (h === 0) return `${m}min`; if (m === 0) return `${h}h`; return `${h}h ${m}min`;
 }
 
 function renderTempoParada() {
-    // Filtra apenas BDs do período
     const bds = dadosFiltrados.filter(o => o.choices?.tipo === 'BREAK DOWN');
-
-    // KPIs
-    const totalBD = bds.length;
-    document.getElementById('kpi-bd-total').textContent = totalBD;
-    const nomePeriodo = { semana:'esta semana', mes:'este mês', trimestre:'este trimestre', ano:'este ano', tudo:'no total' };
-    document.getElementById('kpi-bd-periodo').textContent = nomePeriodo[periodoCurrent] || '';
-
-    // Calcula minutos de cada BD
-    const bdsComTempo = bds.map(os => ({
-        ...os,
-        minutos: calcularMinutosParada(os)
-    })).filter(os => os.minutos !== null);
-
+    document.getElementById('kpi-bd-total').textContent = bds.length;
+    const bdsComTempo = bds.map(os => ({ ...os, minutos: calcularMinutosParada(os) })).filter(os => os.minutos !== null);
     const totalMin = bdsComTempo.reduce((s, o) => s + o.minutos, 0);
     const mediaMin = bdsComTempo.length > 0 ? Math.round(totalMin / bdsComTempo.length) : 0;
     const equipsBD = new Set(bds.map(o => o.dados?.['i-tagm']).filter(Boolean)).size;
 
-    document.getElementById('kpi-tempo-total').textContent   = formatarMinutos(totalMin);
-    document.getElementById('kpi-tempo-medio').textContent   = formatarMinutos(mediaMin);
-    document.getElementById('kpi-equip-bd').textContent      = equipsBD;
-    document.getElementById('kpi-equip-bd-sub').textContent  = equipsBD > 0 ? 'equipamentos diferentes' : '';
-
+    document.getElementById('kpi-tempo-total').textContent = formatarMinutos(totalMin);
+    document.getElementById('kpi-tempo-medio').textContent = formatarMinutos(mediaMin);
+    document.getElementById('kpi-equip-bd').textContent    = equipsBD;
+    
     renderChartTempoLinha(bdsComTempo);
     renderTabelaTempoEquip(bds, bdsComTempo);
     renderTimelineBD(bds, bdsComTempo);
 }
 
-// ── Gráfico de evolução do tempo parado ──
 function renderChartTempoLinha(bdsComTempo) {
     const grupos = {};
     bdsComTempo.forEach(os => {
         const dataStr = os.dados?.['i-data'] || '';
-        if (!dataStr) return;
         const data = new Date(dataStr + 'T00:00:00');
         let chave;
-        if (periodoCurrent === 'semana' || periodoCurrent === 'mes') {
-            chave = dataStr.substring(0, 10);
-        } else if (periodoCurrent === 'trimestre') {
-            const sem = semanaDoAno(dataStr);
-            chave = `${data.getFullYear()}-S${String(sem).padStart(2,'0')}`;
-        } else {
-            chave = dataStr.substring(0, 7);
-        }
+        if (periodoCurrent === 'semana' || periodoCurrent === 'mes') chave = dataStr.substring(0, 10);
+        else if (periodoCurrent === 'trimestre') chave = `${data.getFullYear()}-S${String(semanaDoAno(dataStr)).padStart(2,'0')}`;
+        else chave = dataStr.substring(0, 7);
         grupos[chave] = (grupos[chave] || 0) + os.minutos;
     });
 
     const labels = Object.keys(grupos).sort();
     const values = labels.map(l => grupos[l]);
-
     const labelsFormatados = labels.map(l => {
         if (l.includes('-S')) return l;
-        if (l.length === 7) {
-            const [y, m] = l.split('-');
-            const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-            return meses[parseInt(m)-1] + '/' + y.slice(2);
-        }
-        const [y,m,d] = l.split('-');
-        return `${d}/${m}`;
+        if (l.length === 7) return ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][parseInt(l.split('-')[1])-1] + '/' + l.split('-')[0].slice(2);
+        return `${l.split('-')[2]}/${l.split('-')[1]}`;
     });
 
     const ctx = document.getElementById('chart-tempo-linha').getContext('2d');
     if (chartTempoLinha) chartTempoLinha.destroy();
     chartTempoLinha = new Chart(ctx, {
         type: 'bar',
-        data: {
-            labels: labelsFormatados,
-            datasets: [{
-                label: 'Minutos parado',
-                data: values,
-                backgroundColor: 'rgba(220,53,69,0.18)',
-                borderColor: '#dc3545',
-                borderWidth: 2,
-                borderRadius: 4
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => ` ${formatarMinutos(ctx.parsed.y)} (${ctx.parsed.y} min)`
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        font: { family: 'IBM Plex Mono', size: 11 },
-                        callback: v => formatarMinutos(v)
-                    },
-                    grid: { color: '#edf1f7' }
-                },
-                x: { ticks: { font: { family: 'IBM Plex Mono', size: 10 }, maxRotation: 45 }, grid: { display: false } }
-            }
-        }
+        data: { labels: labelsFormatados, datasets: [{ label: 'Minutos', data: values, backgroundColor: 'rgba(220,53,69,0.18)', borderColor: '#dc3545', borderWidth: 2, borderRadius: 4 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${formatarMinutos(ctx.parsed.y)}` } } }, scales: { y: { beginAtZero: true, ticks: { font: { family: 'IBM Plex Mono', size: 11 }, callback: v => formatarMinutos(v) }, grid: { color: '#edf1f7' } }, x: { ticks: { font: { family: 'IBM Plex Mono', size: 10 } }, grid: { display: false } } } }
     });
 }
 
-// ── Tabela ranking tempo parado por equipamento ──
 function renderTabelaTempoEquip(bds, bdsComTempo) {
     const wrap = document.getElementById('tabela-tempo-equip');
-
-    if (bds.length === 0) {
-        wrap.innerHTML = '<div class="empty-state">📭 Nenhum Break Down no período</div>';
-        return;
-    }
-
-    // Agrupa por equipamento
+    if (bds.length === 0) { wrap.innerHTML = '<div class="empty-state">📭 Sem dados</div>'; return; }
     const equipMap = {};
-    bds.forEach(os => {
-        const tag = os.dados?.['i-tagm'] || 'Sem tag';
-        if (!equipMap[tag]) equipMap[tag] = { qtd: 0, minutos: 0, comTempo: 0 };
-        equipMap[tag].qtd++;
-    });
-    bdsComTempo.forEach(os => {
-        const tag = os.dados?.['i-tagm'] || 'Sem tag';
-        if (!equipMap[tag]) equipMap[tag] = { qtd: 0, minutos: 0, comTempo: 0 };
-        equipMap[tag].minutos += os.minutos;
-        equipMap[tag].comTempo++;
-    });
-
-    const sorted = Object.entries(equipMap)
-        .sort((a, b) => b[1].minutos - a[1].minutos || b[1].qtd - a[1].qtd)
-        .slice(0, 15);
-
+    bds.forEach(os => { const tag = os.dados?.['i-tagm'] || 'Sem tag'; if (!equipMap[tag]) equipMap[tag] = { qtd: 0, minutos: 0, comTempo: 0 }; equipMap[tag].qtd++; });
+    bdsComTempo.forEach(os => { const tag = os.dados?.['i-tagm'] || 'Sem tag'; equipMap[tag].minutos += os.minutos; equipMap[tag].comTempo++; });
+    const sorted = Object.entries(equipMap).sort((a, b) => b[1].minutos - a[1].minutos).slice(0, 15);
     const maxMin = sorted[0]?.[1]?.minutos || 1;
-
-    wrap.innerHTML = `
-        <table class="tabela-equip">
-            <thead>
-                <tr>
-                    <th style="width:30px">#</th>
-                    <th>Equipamento</th>
-                    <th style="text-align:center">BDs</th>
-                    <th style="text-align:center">Tempo Total</th>
-                    <th style="text-align:center">Média/BD</th>
-                    <th style="min-width:80px">Volume</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${sorted.map(([tag, v], i) => {
-                    const [cod, ...desc] = tag.split(' - ');
-                    const descStr = desc.join(' - ').substring(0,26) + (desc.join(' - ').length > 26 ? '…' : '');
-                    const pct = Math.round(v.minutos / maxMin * 100);
-                    const media = v.comTempo > 0 ? Math.round(v.minutos / v.comTempo) : null;
-                    return `
-                    <tr>
-                        <td style="color:var(--muted);font-size:11px;font-family:var(--mono)">${i+1}</td>
-                        <td>
-                            <span class="equip-tag">${cod.trim()}</span>
-                            ${descStr ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">${descStr}</div>` : ''}
-                        </td>
-                        <td style="text-align:center">
-                            <span class="badge badge-bd">${v.qtd}</span>
-                        </td>
-                        <td style="text-align:center;font-family:var(--mono);font-weight:700;color:#dc3545;">
-                            ${v.minutos > 0 ? formatarMinutos(v.minutos) : '<span style="color:var(--muted);font-weight:400">sem dado</span>'}
-                        </td>
-                        <td style="text-align:center;font-family:var(--mono);font-size:12px;color:var(--muted);">
-                            ${media !== null ? formatarMinutos(media) : '—'}
-                        </td>
-                        <td>
-                            <div class="bar-mini">
-                                <div class="bar-mini-fill bd" style="width:${pct}%"></div>
-                            </div>
-                            <div style="font-size:10px;color:var(--muted);margin-top:2px;font-family:var(--mono)">${v.minutos > 0 ? v.minutos + ' min' : ''}</div>
-                        </td>
-                    </tr>`;
-                }).join('')}
-            </tbody>
-        </table>`;
+    wrap.innerHTML = `<table class="tabela-equip"><thead><tr><th>#</th><th>Equipamento</th><th>BDs</th><th>Tempo Total</th><th>Volume</th></tr></thead><tbody>${sorted.map(([tag, v], i) => `<tr><td style="font-family:var(--mono)">${i+1}</td><td><span class="equip-tag">${tag.split(' - ')[0]}</span></td><td><span class="badge badge-bd">${v.qtd}</span></td><td style="color:#dc3545;font-weight:700">${formatarMinutos(v.minutos)}</td><td><div class="bar-mini"><div class="bar-mini-fill bd" style="width:${Math.round(v.minutos/maxMin*100)}%"></div></div></td></tr>`).join('')}</tbody></table>`;
 }
 
-// ── Timeline de Break Downs ──
 function renderTimelineBD(bds, bdsComTempo) {
     const wrap = document.getElementById('timeline-bd-wrap');
-    const tempoMap = {};
-    bdsComTempo.forEach(os => { tempoMap[os.codfolha] = os.minutos; });
-
-    document.getElementById('label-bd-hist').textContent = `${bds.length} break downs`;
-
-    if (bds.length === 0) {
-        wrap.innerHTML = '<div class="empty-state">✅ Nenhum Break Down no período</div>';
-        return;
-    }
-
-    const recentes = [...bds]
-        .sort((a, b) => (b.dados?.['i-data'] || '').localeCompare(a.dados?.['i-data'] || ''))
-        .slice(0, 40);
-
-    wrap.innerHTML = recentes.map(os => {
-        const tag      = os.dados?.['i-tagm'] || '—';
-        const tagCurta = tag.split(' - ')[0];
-        const dataIni  = formatarDataBR(os.dados?.['i-data']);
-        const horaIni  = os.dados?.['i-hora'] || '';
-        const dataLib  = formatarDataBR(os.dados?.['i-data-lib']);
-        const horaLib  = os.dados?.['i-hora-lib'] || '';
-        const min      = tempoMap[os.codfolha];
-        const esp      = os.choices?.esp === 'ELE' ? '🔌 Elétrica' : os.choices?.esp === 'MEC' ? '⚙️ Mecânica' : '';
-
-        return `
-        <div class="timeline-item">
-            <div class="timeline-dot bd"></div>
-            <div class="timeline-info">
-                <div class="timeline-head">
-                    <span class="timeline-num">OS ${os.codfolha}</span>
-                    ${min ? `<span class="badge badge-bd">⏱ ${formatarMinutos(min)}</span>` : '<span style="font-size:11px;color:var(--muted)">sem tempo</span>'}
-                    ${esp ? `<span style="font-size:11px;color:var(--muted)">${esp}</span>` : ''}
-                </div>
-                <div class="timeline-equip">${tagCurta}</div>
-                <div class="timeline-meta">
-                    Parada: ${dataIni} ${horaIni}
-                    ${horaLib ? ` → Liberação: ${dataLib} ${horaLib}` : ''}
-                </div>
-            </div>
-        </div>`;
-    }).join('');
+    const tempoMap = {}; bdsComTempo.forEach(os => { tempoMap[os.codfolha] = os.minutos; });
+    const recentes = [...bds].sort((a, b) => (b.dados?.['i-data'] || '').localeCompare(a.dados?.['i-data'] || '')).slice(0, 40);
+    if (bds.length === 0) { wrap.innerHTML = '<div class="empty-state">✅ Tudo OK</div>'; return; }
+    wrap.innerHTML = recentes.map(os => `<div class="timeline-item"><div class="timeline-dot bd"></div><div class="timeline-info"><div class="timeline-head"><span class="timeline-num">OS ${os.codfolha}</span> ${tempoMap[os.codfolha] ? `<span class="badge badge-bd">⏱ ${formatarMinutos(tempoMap[os.codfolha])}</span>` : ''}</div><div class="timeline-equip">${(os.dados?.['i-tagm'] || '').split(' - ')[0]}</div><div class="timeline-meta">Parada: ${formatarDataBR(os.dados?.['i-data'])} ${os.dados?.['i-hora'] || ''}</div></div></div>`).join('');
 }
 
-// ══════════════════════════════════════
-//  INIT
-// ══════════════════════════════════════
-window.onload = () => carregarDados();
-</script>
-</body>
-</html>
-
-</div>
-
-<!-- GERENCIAR USUÁRIOS -->
-
-<div id="usuarios">
-
-<h3>Criar novo usuário</h3>
-
-<input id="novoUser" placeholder="Usuário">
-<input id="novaSenha" placeholder="Senha">
-
-<button onclick="criarUsuario()">Criar</button>
-
-<h3>Usuários cadastrados</h3>
-
-<div id="listaUsuarios"></div>
-
-</div>
-
-</div>
-
-<script>
-
-/* LOGIN ADMIN PRINCIPAL */
-
-const MASTER_LOGIN_USUARIO = "admin";
-const MASTER_LOGIN_SENHA = "ccgl2026";
-
-/* BANCO LOCAL */
-
-let usuarios = JSON.parse(localStorage.getItem("usuarios")) || [
-{user:MASTER_LOGIN_USUARIO,pass:MASTER_LOGIN_SENHA,admin:true}
-];
-
-function salvar(){
-localStorage.setItem("usuarios",JSON.stringify(usuarios));
-}
-
-/* LOGIN */
-
-function login() {
-    let u = document.getElementById("user").value;
-    let p = document.getElementById("pass").value;
-
-    let user = usuarios.find(x => x.user === u && x.pass === p);
-
-    if (!user) {
-        document.getElementById("erro").innerText = "Login inválido";
-        return;
-    }
-
-    sessionStorage.setItem("logado", u);
-    sessionStorage.setItem("admin", user.admin ? "true" : "false");
-
-    document.getElementById("loginTela").style.display = "none";
-    document.getElementById("dashboard").style.display = "block";
-
-    if (user.admin) {
-        document.getElementById("btnUsuarios").style.display = "inline-flex";
-    } else {
-        document.getElementById("btnUsuarios").style.display = "none";
-    }
-
-    listarUsuarios();
-}
-
-/* LOGOUT */
-
-function logout(){
-sessionStorage.clear();
-location.reload();
-}
-
-/* GERENCIAR USUÁRIOS */
-
-function abrirUsuarios(){
-
-let div=document.getElementById("usuarios");
-
-div.style.display= div.style.display==="block" ? "none" : "block";
-
-}
-
-/* CRIAR USUÁRIO */
-
-function criarUsuario(){
-
-let u=document.getElementById("novoUser").value;
-let p=document.getElementById("novaSenha").value;
-
-if(!u || !p){
-alert("Preencha usuário e senha");
-return;
-}
-
-usuarios.push({user:u,pass:p,admin:false});
-
-salvar();
-
-listarUsuarios();
-
-}
-
-/* LISTA */
-
-function listarUsuarios(){
-
-let lista=document.getElementById("listaUsuarios");
-
-lista.innerHTML="";
-
-usuarios.forEach((u,i)=>{
-
-if(u.admin)return;
-
-let div=document.createElement("div");
-
-div.innerHTML=`
-${u.user}
-<button onclick="remover(${i})">Excluir</button>
-`;
-
-lista.appendChild(div);
-
-});
-
-}
-
-/* REMOVER */
-
-function remover(i){
-
-usuarios.splice(i,1);
-
-salvar();
-
-listarUsuarios();
-
-}
-
-window.addEventListener("load", () => {
+window.onload = () => {
     const logado = sessionStorage.getItem("logado");
     const isAdmin = sessionStorage.getItem("admin") === "true";
 
     if (logado) {
         document.getElementById("loginTela").style.display = "none";
         document.getElementById("dashboard").style.display = "block";
-
         if (isAdmin) {
             document.getElementById("btnUsuarios").style.display = "inline-flex";
-        } else {
-            document.getElementById("btnUsuarios").style.display = "none";
+            listarUsuarios();
         }
-
-        listarUsuarios();
+        carregarDados();
     }
-});
-
+};
 </script>
-
 </body>
 </html>
