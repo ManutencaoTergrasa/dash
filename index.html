@@ -633,6 +633,7 @@ body {
     <div class="filtros-bar">
         <span class="filtro-label">Período</span>
         <div class="filtro-btn-group">
+            <button class="filtro-btn" data-periodo="diario" onclick="setPeriodo('diario', this)">Diário</button>
             <button class="filtro-btn" data-periodo="semana" onclick="setPeriodo('semana', this)">Semana</button>
             <button class="filtro-btn active" data-periodo="mes" onclick="setPeriodo('mes', this)">Mês</button>
             <button class="filtro-btn" data-periodo="trimestre" onclick="setPeriodo('trimestre', this)">Trimestre</button>
@@ -675,7 +676,13 @@ body {
         </div>
         <input type="hidden" id="filtro-equip-top" value="">
 
-        <button class="btn-atualizar" id="btn-atualizar" onclick="carregarDados()" style="margin-left:auto; white-space:nowrap; flex-shrink:0;">
+        <button class="btn-atualizar" type="button" onclick="gerarRelatorioHTML()" style="margin-left:auto; white-space:nowrap; flex-shrink:0; background:#166534;">
+            🖨 Relatório
+        </button>
+        <button class="btn-atualizar" type="button" onclick="gerarRelatorioCSV()" style="white-space:nowrap; flex-shrink:0; background:#92400e;">
+            ⬇ CSV
+        </button>
+        <button class="btn-atualizar" id="btn-atualizar" onclick="carregarDados()" style="white-space:nowrap; flex-shrink:0;">
             🔄 Atualizar
         </button>
     </div>
@@ -722,6 +729,12 @@ body {
             <div class="kpi-valor" id="kpi-rearme">—</div>
             <div class="kpi-label">Rearme</div>
             <div class="kpi-sub" id="kpi-rearme-sub"></div>
+        </div>
+        <div class="kpi-card cinza">
+            <div class="kpi-icon">📋</div>
+            <div class="kpi-valor" id="kpi-outros">—</div>
+            <div class="kpi-label">Outros</div>
+            <div class="kpi-sub" id="kpi-outros-sub"></div>
         </div>
         <div class="kpi-card roxo">
             <div class="kpi-icon">🔌</div>
@@ -1213,6 +1226,8 @@ async function removerUsuario(id){
 function dataInicioPeriodo(periodo) {
     const hoje = new Date();
     switch(periodo) {
+        case 'diario':
+            return new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
         case 'semana':
             const d = new Date(hoje);
             d.setDate(hoje.getDate() - hoje.getDay());
@@ -1252,7 +1267,7 @@ function agruparPorPeriodo(dados, periodo) {
         if (!dataStr) return;
         const data = new Date(dataStr + 'T00:00:00');
         let chave;
-        if (periodo === 'semana' || periodo === 'mes') {
+        if (periodo === 'diario' || periodo === 'semana' || periodo === 'mes') {
             chave = dataStr.substring(0, 10); // dia
         } else if (periodo === 'trimestre') {
             const sem = semanaDoAno(dataStr);
@@ -1415,6 +1430,488 @@ function renderizarTudo() {
     renderIrregularidades();
 }
 
+function nomePeriodoAtual() {
+    return ({ diario:'Diário', semana:'Semanal', mes:'Mensal', trimestre:'Trimestral', ano:'Anual', tudo:'Completo' })[periodoCurrent] || 'Atual';
+}
+
+function dataArquivoAtual() {
+    const agora = new Date();
+    const y = agora.getFullYear();
+    const m = String(agora.getMonth() + 1).padStart(2, '0');
+    const d = String(agora.getDate()).padStart(2, '0');
+    const hh = String(agora.getHours()).padStart(2, '0');
+    const mm = String(agora.getMinutes()).padStart(2, '0');
+    return `${y}${m}${d}-${hh}${mm}`;
+}
+
+function escaparHtml(txt) {
+    return String(txt ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+}
+
+function baixarArquivo(nome, conteudo, tipo) {
+    const blob = new Blob([conteudo], { type: tipo });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nome;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function normalizarTextoBusca(txt) {
+    return String(txt ?? '')
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .toLowerCase()
+        .trim();
+}
+
+function extrairCodigosIrregularidade(os) {
+    const dados = os?.dados || {};
+    const pares = Object.entries(dados)
+        .filter(([k, v]) => /^slot-input-prob-\d+$/i.test(String(k)) && v && String(v).trim())
+        .sort((a, b) => {
+            const na = Number(String(a[0]).match(/(\d+)$/)?.[1] || 0);
+            const nb = Number(String(b[0]).match(/(\d+)$/)?.[1] || 0);
+            return na - nb;
+        });
+
+    return pares.map(([, v]) => {
+        const val = String(v).trim();
+        return val.includes(' - ') ? val.split(' - ')[0].trim() : val;
+    }).filter(Boolean);
+}
+
+function obterDescricaoSolucao(os) {
+    const dados = os?.dados || {};
+
+    const chavesDiretas = [
+        'DESCRIÇÃO DA SOLUÇÃO',
+        'DESCRICAO DA SOLUCAO',
+        'DESCRIÇÃO SOLUÇÃO',
+        'DESCRICAO SOLUCAO',
+        'DESCRIÇÃO DO SERVIÇO EXECUTADO - SOLUÇÃO',
+        'DESCRICAO DO SERVICO EXECUTADO - SOLUCAO',
+        'descricao_da_solucao',
+        'descricao_solucao',
+        'desc_solucao',
+        'descricao_servico_executado',
+        'desc_servico_executado',
+        'solucao',
+        'solução'
+    ];
+
+    const valores = [];
+    const vistos = new Set();
+
+    function adicionarValor(v) {
+        const texto = String(v ?? '').trim();
+        if (!texto) return;
+        const chave = texto.toLowerCase();
+        if (vistos.has(chave)) return;
+        vistos.add(chave);
+        valores.push(texto);
+    }
+
+    for (const chave of chavesDiretas) {
+        if (Object.prototype.hasOwnProperty.call(dados, chave)) {
+            adicionarValor(dados[chave]);
+        }
+    }
+
+    const entradas = Object.entries(dados)
+        .map(([k, v]) => ({ chave: k, norm: normalizarTextoBusca(k), valor: v }))
+        .filter(item => item.valor && String(item.valor).trim());
+
+    entradas
+        .filter(item => (
+            item.norm.includes('solucao') ||
+            item.norm.includes('servicoexecutado') ||
+            item.norm.includes('descricaoservico') ||
+            item.norm.includes('descservico') ||
+            /^slot-input-serv-\d+$/.test(item.norm) ||
+            /^slot-desc-serv-\d+$/.test(item.norm) ||
+            /^slot-text-serv-\d+$/.test(item.norm)
+        ))
+        .sort((a, b) => {
+            const na = Number(String(a.chave).match(/(\d+)$/)?.[1] || 0);
+            const nb = Number(String(b.chave).match(/(\d+)$/)?.[1] || 0);
+            return na - nb;
+        })
+        .forEach(item => adicionarValor(item.valor));
+
+    return valores.join(' | ');
+}
+
+function obterLinhasRelatorio() {
+    return dadosFiltrados.map(os => {
+        const minutos = calcularMinutosParada(os);
+        const tagCompleta = os.dados?.['i-tagm'] || '';
+        const tag = tagCompleta.split(' - ')[0] || tagCompleta || '—';
+        const irregularidades = extrairCodigosIrregularidade(os).join(' | ');
+        const descricaoSolucao = obterDescricaoSolucao(os);
+        return {
+            os: os.codfolha || '',
+            data: os.dados?.['i-data'] || '',
+            hora: os.dados?.['i-hora'] || '',
+            dataLiberacao: os.dados?.['i-data-lib'] || '',
+            horaLiberacao: os.dados?.['i-hora-lib'] || '',
+            tipo: os.choices?.tipo || '',
+            especialidade: os.choices?.esp || '',
+            setor: os.dados?.['i-setor'] || '',
+            equipamento: tag,
+            equipamentoCompleto: tagCompleta,
+            solicitante: os.dados?.['i-sol'] || '',
+            minutosParada: minutos ?? '',
+            tempoParada: minutos !== null ? formatarMinutos(minutos) : '',
+            irregularidades,
+            descricaoSolucao
+        };
+    });
+}
+
+function gerarRelatorioCSV() {
+    const linhas = obterLinhasRelatorio();
+    if (!linhas.length) {
+        alert('Não há dados filtrados para exportar.');
+        return;
+    }
+    const cabecalhos = ['OS','Data','Hora','Data Liberação','Hora Liberação','Tipo','Especialidade','Setor','Equipamento','Equipamento Completo','Solicitante','Minutos Parada','Tempo Parada','Irregularidades','Descrição da Solução'];
+    const csv = [cabecalhos.join(';')].concat(linhas.map(l => [
+        l.os, l.data, l.hora, l.dataLiberacao, l.horaLiberacao, l.tipo, l.especialidade, l.setor,
+        l.equipamento, l.equipamentoCompleto, l.solicitante, l.minutosParada, l.tempoParada, l.irregularidades, l.descricaoSolucao
+    ].map(v => `"${String(v ?? '').replaceAll('"', '""')}"`).join(';'))).join('\n');
+    baixarArquivo(`relatorio-dashboard-${periodoCurrent}-${dataArquivoAtual()}.csv`, '﻿' + csv, 'text/csv;charset=utf-8;');
+}
+
+function gerarRelatorioHTML() {
+    const linhas = obterLinhasRelatorio();
+    if (!linhas.length) {
+        alert('Não há dados filtrados para gerar relatório.');
+        return;
+    }
+
+    const total = dadosFiltrados.length;
+    const tipos = [
+        { key: 'BREAK DOWN', label: 'Break Down', value: dadosFiltrados.filter(o => o.choices?.tipo === 'BREAK DOWN').length, color: '#dc3545' },
+        { key: 'CORRETIVA', label: 'Corretiva', value: dadosFiltrados.filter(o => o.choices?.tipo === 'CORRETIVA').length, color: '#f59e0b' },
+        { key: 'MELHORIA', label: 'Melhoria', value: dadosFiltrados.filter(o => o.choices?.tipo === 'MELHORIA').length, color: '#22c55e' },
+        { key: 'INSPEÇÃO NP', label: 'Inspeção NP', value: dadosFiltrados.filter(o => o.choices?.tipo === 'INSPEÇÃO NP').length, color: '#2563eb' },
+        { key: 'CORSIN', label: 'Corsin', value: dadosFiltrados.filter(o => o.choices?.tipo === 'CORSIN').length, color: '#8b5cf6' },
+        { key: 'REARME', label: 'Rearme', value: dadosFiltrados.filter(o => o.choices?.tipo === 'REARME').length, color: '#d97706' },
+        { key: 'OUTROS', label: 'Outros', value: dadosFiltrados.filter(o => (o.choices?.tipo || 'OUTROS') === 'OUTROS').length, color: '#64748b' }
+    ];
+
+    const totalMin = linhas.reduce((s, l) => s + (Number(l.minutosParada) || 0), 0);
+    const mediaMin = total ? Math.round(totalMin / total) : 0;
+    const setoresUnicos = new Set(linhas.map(l => (l.setor || '').trim()).filter(Boolean)).size;
+    const equipamentosUnicos = new Set(linhas.map(l => (l.equipamento || '').trim()).filter(Boolean)).size;
+
+    const equipMap = {};
+    const setorMap = {};
+    linhas.forEach(l => {
+        const equip = l.equipamento || '—';
+        const setor = l.setor || '—';
+        if (!equipMap[equip]) equipMap[equip] = { total: 0, minutos: 0 };
+        if (!setorMap[setor]) setorMap[setor] = { total: 0, minutos: 0 };
+        equipMap[equip].total++;
+        equipMap[equip].minutos += Number(l.minutosParada) || 0;
+        setorMap[setor].total++;
+        setorMap[setor].minutos += Number(l.minutosParada) || 0;
+    });
+    const topEquip = Object.entries(equipMap).sort((a,b) => b[1].total - a[1].total || b[1].minutos - a[1].minutos).slice(0,8);
+    const topSetores = Object.entries(setorMap).sort((a,b) => b[1].total - a[1].total || b[1].minutos - a[1].minutos);
+    const setorMax = topSetores[0]?.[1]?.total || 1;
+
+    const irrMap = {};
+    dadosFiltrados.forEach(os => {
+        extrairIrregularidades(os).forEach(i => {
+            if (!irrMap[i.cod]) irrMap[i.cod] = { desc: i.desc || '', qtd: 0 };
+            irrMap[i.cod].qtd++;
+        });
+    });
+    const topIrr = Object.entries(irrMap).sort((a,b) => b[1].qtd - a[1].qtd).slice(0,8);
+
+    const filtros = [
+        { label: 'Período', value: nomePeriodoAtual() },
+        { label: 'Tipo', value: document.getElementById('filtro-tipo').value || 'Todos' },
+        { label: 'Especialidade', value: document.getElementById('filtro-esp').value || 'Todas' },
+        { label: 'Setor', value: document.getElementById('filtro-setor').value || 'Todos' },
+        { label: 'Equipamento', value: document.getElementById('filtro-equip-top').value || 'Todos' }
+    ];
+
+    const donutSvg = (() => {
+        const active = tipos.filter(t => t.value > 0);
+        const radius = 76;
+        const circumference = 2 * Math.PI * radius;
+        let offset = 0;
+        const circles = active.length ? active.map(t => {
+            const frac = t.value / total;
+            const dash = frac * circumference;
+            const svg = `<circle cx="110" cy="110" r="${radius}" fill="none" stroke="${t.color}" stroke-width="26" stroke-linecap="butt" stroke-dasharray="${dash.toFixed(2)} ${(circumference - dash).toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}" transform="rotate(-90 110 110)"/>`;
+            offset += dash;
+            return svg;
+        }).join('') : `<circle cx="110" cy="110" r="${radius}" fill="none" stroke="#cbd5e1" stroke-width="26"/>`;
+        return `<svg viewBox="0 0 220 220" width="220" height="220" aria-label="OS por tipo"><circle cx="110" cy="110" r="${radius}" fill="none" stroke="#e2e8f0" stroke-width="26"/>${circles}<circle cx="110" cy="110" r="54" fill="#ffffff"/><text x="110" y="100" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#64748b">Total OS</text><text x="110" y="128" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#0f172a">${total}</text></svg>`;
+    })();
+
+    const detalheCards = linhas.map(l => `
+        <div class="os-item">
+            <div class="os-head">
+                <div class="os-main">
+                    <span class="os-num">OS ${escaparHtml(l.os || '—')}</span>
+                    <span class="os-meta">${escaparHtml(formatarDataBR(l.data) || '—')}${l.hora ? ` · ${escaparHtml(l.hora)}` : ''}</span>
+                </div>
+                <div class="os-badges">
+                    <span class="badge badge-tipo">${escaparHtml(l.tipo || '—')}</span>
+                    <span class="badge">${escaparHtml(l.especialidade || '—')}</span>
+                    <span class="badge">${escaparHtml(l.setor || '—')}</span>
+                </div>
+            </div>
+            <div class="os-grid">
+                <div><span class="rotulo">Equipamento</span><strong>${escaparHtml(l.equipamento || '—')}</strong></div>
+                <div><span class="rotulo">Solicitante</span><strong>${escaparHtml(l.solicitante || '—')}</strong></div>
+                <div><span class="rotulo">Tempo parado</span><strong>${escaparHtml(l.tempoParada || '—')}</strong></div>
+                <div><span class="rotulo">Irregularidade</span><strong>${escaparHtml(l.irregularidades || '—')}</strong></div>
+            </div>
+            <div class="solucao-box">
+                <span class="rotulo">Descrição da solução</span>
+                <div class="solucao-texto">${escaparHtml(l.descricaoSolucao || '—')}</div>
+            </div>
+        </div>
+    `).join('');
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Relatório Dashboard CCGL</title>
+<style>
+@page { size: A4; margin: 12mm; }
+:root{
+    --azul:#003366;
+    --azul-2:#0f4c81;
+    --azul-claro:#eef5fc;
+    --texto:#162132;
+    --muted:#5d6b82;
+    --borda:#d7e2ef;
+    --bg:#f4f7fb;
+    --verde:#22c55e;
+    --ambar:#f59e0b;
+    --vermelho:#dc3545;
+    --roxo:#8b5cf6;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#eef2f7;color:var(--texto);font-family:Arial,sans-serif}
+body{padding:12px}
+.relatorio{width:186mm;margin:0 auto;background:#fff;border:1px solid #dde6f0;box-shadow:0 8px 30px rgba(15,23,42,.08)}
+.pagina{padding:16mm 14mm 14mm;page-break-after:always}
+.pagina:last-child{page-break-after:auto}
+.topo{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:14px}
+.marca{display:flex;flex-direction:column;gap:5px}
+.marca .ccgl{font-size:28px;font-weight:800;letter-spacing:2px;color:var(--azul)}
+.marca .titulo{font-size:18px;font-weight:700;color:#0f172a}
+.marca .sub{font-size:12px;color:var(--muted)}
+.meta-box{min-width:240px;background:linear-gradient(135deg,#003366,#0f4c81);color:#fff;border-radius:14px;padding:14px 16px}
+.meta-box .linha{font-size:11px;opacity:.9;margin-top:5px}
+.filtros{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 18px}
+.chip{border:1px solid var(--borda);background:var(--azul-claro);color:var(--azul);border-radius:999px;padding:7px 11px;font-size:11px;line-height:1.2}
+.chip b{font-size:10px;letter-spacing:.4px;text-transform:uppercase}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}
+.kpi{border:1px solid var(--borda);border-radius:14px;padding:12px 12px 10px;background:linear-gradient(180deg,#fff,#f8fbff);min-height:86px}
+.kpi .valor{font-size:25px;font-weight:800;color:var(--azul);line-height:1;margin-bottom:6px}
+.kpi .label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.55px;color:var(--muted)}
+.kpi .sub{font-size:11px;color:#425168;margin-top:4px}
+.grade{display:grid;grid-template-columns:1.15fr .85fr;gap:14px}
+.card{border:1px solid var(--borda);border-radius:16px;background:#fff;overflow:hidden}
+.card-head{padding:12px 14px;border-bottom:1px solid #e8eef6;background:linear-gradient(180deg,#fbfdff,#f5f9fd)}
+.card-title{font-size:12px;font-weight:800;color:var(--azul);text-transform:uppercase;letter-spacing:.6px}
+.card-sub{font-size:11px;color:var(--muted);margin-top:3px}
+.card-body{padding:14px}
+.donut-area{display:grid;grid-template-columns:220px 1fr;gap:16px;align-items:center}
+.legenda{display:grid;gap:8px}
+.legenda-item{display:grid;grid-template-columns:12px 1fr auto auto;gap:8px;align-items:center;font-size:12px}
+.dot{width:12px;height:12px;border-radius:50%}
+.legenda-item .qtd{font-weight:700;color:var(--azul);font-family:Arial,sans-serif}
+.legenda-item .pct{color:var(--muted);font-size:11px;width:44px;text-align:right}
+.setores{display:grid;gap:9px}
+.setor-item{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+.setor-topo{display:flex;justify-content:space-between;gap:8px;font-size:12px}
+.setor-nome{font-weight:700;color:#0f172a}
+.setor-vol{font-weight:700;color:var(--azul)}
+.barra{height:8px;background:#edf2f7;border-radius:999px;overflow:hidden;margin-top:4px}
+.barra > span{display:block;height:100%;background:linear-gradient(90deg,#003366,#0f4c81);border-radius:999px}
+.grid-sec{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.tabela{width:100%;border-collapse:collapse;font-size:11px}
+.tabela th,.tabela td{padding:8px 9px;border-bottom:1px solid #e6edf5;text-align:left;vertical-align:top}
+.tabela th{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);background:#f8fbff}
+.tabela tbody tr:nth-child(even){background:#fbfdff}
+.badge-mini{display:inline-block;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;background:#eef5fc;color:var(--azul)}
+.bloco-destaque{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:14px}
+.destaque{border:1px solid var(--borda);border-radius:14px;padding:12px;background:#fcfdff}
+.destaque .rot{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.5px;margin-bottom:6px}
+.destaque .txt{font-size:13px;font-weight:700;color:#0f172a;line-height:1.35}
+.secao-titulo{font-size:13px;font-weight:800;color:var(--azul);text-transform:uppercase;letter-spacing:.7px;margin:0 0 10px}
+.os-lista{display:grid;gap:10px}
+.os-item{border:1px solid var(--borda);border-radius:14px;padding:11px 12px;background:#fff;page-break-inside:avoid;break-inside:avoid}
+.os-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:9px}
+.os-main{display:flex;flex-direction:column;gap:3px}
+.os-num{font-size:14px;font-weight:800;color:var(--azul)}
+.os-meta{font-size:11px;color:var(--muted)}
+.os-badges{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+.badge{display:inline-flex;align-items:center;padding:5px 8px;border-radius:999px;font-size:10px;font-weight:700;background:#f3f7fb;color:#425168;border:1px solid #dbe6f3}
+.badge-tipo{background:#eef5fc;color:var(--azul)}
+.os-grid{display:grid;grid-template-columns:1.1fr 1fr .8fr 1.4fr;gap:10px;margin-bottom:8px}
+.rotulo{display:block;font-size:9px;font-weight:700;text-transform:uppercase;color:var(--6d7b91);letter-spacing:.45px;margin-bottom:4px}
+.os-grid strong{font-size:11px;line-height:1.35;color:#0f172a}
+.solucao-box{border-top:1px dashed #d5dfeb;padding-top:8px}
+.solucao-texto{font-size:11px;line-height:1.45;color:#1f2937;white-space:pre-wrap;word-break:break-word}
+.rodape{display:flex;justify-content:space-between;gap:12px;border-top:1px solid #e8eef6;padding-top:10px;margin-top:12px;font-size:10px;color:var(--muted)}
+.no-print{margin-bottom:10px;text-align:center}
+.no-print button{background:#166534;color:#fff;border:none;border-radius:10px;padding:10px 16px;font-weight:700;cursor:pointer}
+@media print{
+  body{background:#fff;padding:0}
+  .relatorio{width:auto;margin:0;border:none;box-shadow:none}
+  .no-print{display:none}
+}
+</style>
+</head>
+<body>
+<div class="no-print"><button onclick="window.print()">Imprimir / Salvar em PDF</button></div>
+<div class="relatorio">
+  <section class="pagina">
+    <div class="topo">
+      <div class="marca">
+        <div class="ccgl">CCGL</div>
+        <div class="titulo">Relatório Gerencial de Manutenção</div>
+        <div class="sub">Baseado exatamente nos filtros ativos da dashboard.</div>
+      </div>
+      <div class="meta-box">
+        <div style="font-size:14px;font-weight:800;letter-spacing:.4px">Resumo do Período</div>
+        <div class="linha">Gerado em: ${escaparHtml(new Date().toLocaleString('pt-BR'))}</div>
+        <div class="linha">Registros filtrados: ${total}</div>
+        <div class="linha">Tempo total de parada: ${escaparHtml(formatarMinutos(totalMin))}</div>
+      </div>
+    </div>
+
+    <div class="filtros">
+      ${filtros.map(f => `<div class="chip"><b>${escaparHtml(f.label)}</b> · ${escaparHtml(f.value)}</div>`).join('')}
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="valor">${total}</div><div class="label">Total de OS</div><div class="sub">Ordens no filtro atual</div></div>
+      <div class="kpi"><div class="valor">${tipos.find(t => t.key === 'BREAK DOWN').value}</div><div class="label">Break Down</div><div class="sub">Paradas corretivas</div></div>
+      <div class="kpi"><div class="valor">${escaparHtml(formatarMinutos(totalMin))}</div><div class="label">Tempo parado</div><div class="sub">Acumulado no período</div></div>
+      <div class="kpi"><div class="valor">${escaparHtml(formatarMinutos(mediaMin))}</div><div class="label">Média por OS</div><div class="sub">Tempo médio registrado</div></div>
+      <div class="kpi"><div class="valor">${setoresUnicos}</div><div class="label">Setores afetados</div><div class="sub">${equipamentosUnicos} equipamentos</div></div>
+    </div>
+
+    <div class="grade">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">OS por Tipo</div>
+          <div class="card-sub">Distribuição das ordens geradas no filtro atual.</div>
+        </div>
+        <div class="card-body">
+          <div class="donut-area">
+            <div>${donutSvg}</div>
+            <div class="legenda">
+              ${tipos.filter(t => t.value > 0).map(t => `<div class="legenda-item"><span class="dot" style="background:${t.color}"></span><span>${escaparHtml(t.label)}</span><span class="qtd">${t.value}</span><span class="pct">${total ? Math.round((t.value/total)*100) : 0}%</span></div>`).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Setores com OS geradas</div>
+          <div class="card-sub">Quantidade total de ordens por setor, independente do tipo.</div>
+        </div>
+        <div class="card-body">
+          <div class="setores">
+            ${topSetores.map(([setor, v]) => `<div class="setor-item"><div><div class="setor-topo"><span class="setor-nome">${escaparHtml(setor)}</span><span class="setor-vol">${v.total} OS</span></div><div class="barra"><span style="width:${Math.max(8, Math.round((v.total/setorMax)*100))}%"></span></div></div></div>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bloco-destaque">
+      <div class="destaque"><div class="rot">Setor com mais OS</div><div class="txt">${topSetores[0] ? `${escaparHtml(topSetores[0][0])} · ${topSetores[0][1].total} OS` : '—'}</div></div>
+      <div class="destaque"><div class="rot">Equipamento com mais OS</div><div class="txt">${topEquip[0] ? `${escaparHtml(topEquip[0][0])} · ${topEquip[0][1].total} OS` : '—'}</div></div>
+      <div class="destaque"><div class="rot">Irregularidade mais recorrente</div><div class="txt">${topIrr[0] ? `${escaparHtml(topIrr[0][0])} · ${topIrr[0][1].qtd} ocorrência(s)` : 'Sem irregularidades no período'}</div></div>
+    </div>
+
+    <div class="rodape">
+      <div>Relatório gerado automaticamente pelo Dashboard CCGL</div>
+      <div>Página 1</div>
+    </div>
+  </section>
+
+  <section class="pagina">
+    <div class="secao-titulo">Análises complementares</div>
+    <div class="grid-sec">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Top Equipamentos</div>
+          <div class="card-sub">Equipamentos com maior volume de OS no período.</div>
+        </div>
+        <div class="card-body" style="padding:0">
+          <table class="tabela">
+            <thead><tr><th>#</th><th>Equipamento</th><th>Total OS</th><th>Tempo parado</th></tr></thead>
+            <tbody>
+              ${topEquip.map(([equip,v],i) => `<tr><td>${i+1}</td><td>${escaparHtml(equip)}</td><td><span class="badge-mini">${v.total}</span></td><td>${escaparHtml(formatarMinutos(v.minutos))}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Top Irregularidades</div>
+          <div class="card-sub">Ocorrências mais frequentes no filtro atual.</div>
+        </div>
+        <div class="card-body" style="padding:0">
+          <table class="tabela">
+            <thead><tr><th>#</th><th>Código</th><th>Qtd</th><th>Descrição</th></tr></thead>
+            <tbody>
+              ${topIrr.length ? topIrr.map(([cod,v],i) => `<tr><td>${i+1}</td><td>${escaparHtml(cod)}</td><td><span class="badge-mini">${v.qtd}</span></td><td>${escaparHtml(v.desc || '—')}</td></tr>`).join('') : '<tr><td colspan="4">Sem irregularidades no filtro atual</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="rodape">
+      <div>Baseada nos mesmos filtros aplicados na dashboard</div>
+      <div>Página 2</div>
+    </div>
+  </section>
+
+  <section class="pagina">
+    <div class="secao-titulo">Detalhamento das OS filtradas</div>
+    <div class="os-lista">
+      ${detalheCards}
+    </div>
+    <div class="rodape">
+      <div>Total de OS detalhadas: ${total}</div>
+      <div>Página 3</div>
+    </div>
+  </section>
+</div>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank');
+    if (!win) {
+        alert('O navegador bloqueou a abertura do relatório. Libere pop-ups para este arquivo/site.');
+        return;
+    }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+}
+
+
 function renderKPIs() {
     const total  = dadosFiltrados.length;
     const bd     = dadosFiltrados.filter(o => o.choices?.tipo === 'BREAK DOWN').length;
@@ -1423,6 +1920,7 @@ function renderKPIs() {
     const insp   = dadosFiltrados.filter(o => o.choices?.tipo === 'INSPEÇÃO NP').length;
     const corsin = dadosFiltrados.filter(o => o.choices?.tipo === 'CORSIN').length;
     const rearme = dadosFiltrados.filter(o => o.choices?.tipo === 'REARME').length;
+    const outros = dadosFiltrados.filter(o => (o.choices?.tipo || 'OUTROS') === 'OUTROS').length;
     const ele    = dadosFiltrados.filter(o => o.choices?.esp  === 'ELE').length;
     const mec    = dadosFiltrados.filter(o => o.choices?.esp  === 'MEC').length;
 
@@ -1433,6 +1931,7 @@ function renderKPIs() {
     document.getElementById('kpi-insp').textContent      = insp;
     document.getElementById('kpi-corsin').textContent    = corsin;
     document.getElementById('kpi-rearme').textContent    = rearme;
+    document.getElementById('kpi-outros').textContent    = outros;
     document.getElementById('kpi-ele').textContent       = ele;
     document.getElementById('kpi-mec').textContent       = mec;
 
@@ -1443,10 +1942,11 @@ function renderKPIs() {
     document.getElementById('kpi-insp-sub').textContent      = pct(insp);
     document.getElementById('kpi-corsin-sub').textContent    = pct(corsin);
     document.getElementById('kpi-rearme-sub').textContent    = pct(rearme);
+    document.getElementById('kpi-outros-sub').textContent    = pct(outros);
     document.getElementById('kpi-ele-sub').textContent       = pct(ele);
     document.getElementById('kpi-mec-sub').textContent       = pct(mec);
 
-    const nomePeriodo = { semana:'esta semana', mes:'este mês', trimestre:'este trimestre', ano:'este ano', tudo:'no total' };
+    const nomePeriodo = { diario:'hoje', semana:'esta semana', mes:'este mês', trimestre:'este trimestre', ano:'este ano', tudo:'no total' };
     document.getElementById('kpi-total-sub').textContent = nomePeriodo[periodoCurrent] || '';
 }
 
@@ -1662,9 +2162,12 @@ function renderTempoParada() {
     const mediaMin = bdsComTempo.length > 0 ? Math.round(totalMin / bdsComTempo.length) : 0;
     const equipsBD = new Set(bds.map(o => o.dados?.['i-tagm']).filter(Boolean)).size;
 
+    document.getElementById('kpi-bd-periodo').textContent = nomePeriodoAtual();
     document.getElementById('kpi-tempo-total').textContent = formatarMinutos(totalMin);
     document.getElementById('kpi-tempo-medio').textContent = formatarMinutos(mediaMin);
     document.getElementById('kpi-equip-bd').textContent    = equipsBD;
+    document.getElementById('kpi-equip-bd-sub').textContent = equipsBD === 1 ? '1 equipamento no período' : `${equipsBD} equipamentos no período`;
+    document.getElementById('label-bd-hist').textContent = `${bds.length} break downs`;
     
     renderChartTempoLinha(bdsComTempo);
     renderTabelaTempoEquip(bds, bdsComTempo);
@@ -1677,7 +2180,7 @@ function renderChartTempoLinha(bdsComTempo) {
         const dataStr = os.dados?.['i-data'] || '';
         const data = new Date(dataStr + 'T00:00:00');
         let chave;
-        if (periodoCurrent === 'semana' || periodoCurrent === 'mes') chave = dataStr.substring(0, 10);
+        if (periodoCurrent === 'diario' || periodoCurrent === 'semana' || periodoCurrent === 'mes') chave = dataStr.substring(0, 10);
         else if (periodoCurrent === 'trimestre') chave = `${data.getFullYear()}-S${String(semanaDoAno(dataStr)).padStart(2,'0')}`;
         else chave = dataStr.substring(0, 7);
         grupos[chave] = (grupos[chave] || 0) + os.minutos;
@@ -1866,7 +2369,7 @@ function renderReincidencias() {
     // Pegar todos os meses/semanas com dados de BD
     const todasDatas = bds.map(o => {
         const d = o.dados?.['i-data'] || '';
-        if (periodoCurrent === 'semana' || periodoCurrent === 'mes') return d.substring(0,10);
+        if (periodoCurrent === 'diario' || periodoCurrent === 'semana' || periodoCurrent === 'mes') return d.substring(0,10);
         if (periodoCurrent === 'trimestre') {
             const dt = new Date(d+'T00:00:00');
             return `${dt.getFullYear()}-S${String(semanaDoAno(d)).padStart(2,'0')}`;
@@ -1887,7 +2390,7 @@ function renderReincidencias() {
         const dataPorPeriodo = {};
         v.datas.forEach(d => {
             let chave;
-            if (periodoCurrent === 'semana' || periodoCurrent === 'mes') chave = d.substring(0,10);
+            if (periodoCurrent === 'diario' || periodoCurrent === 'semana' || periodoCurrent === 'mes') chave = d.substring(0,10);
             else if (periodoCurrent === 'trimestre') {
                 const dt = new Date(d+'T00:00:00');
                 chave = `${dt.getFullYear()}-S${String(semanaDoAno(d)).padStart(2,'0')}`;
