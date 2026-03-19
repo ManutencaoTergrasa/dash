@@ -661,6 +661,12 @@ body {
             <option value="MEC">Mecânica</option>
         </select>
 
+        <select class="filtro-select" id="filtro-processo" onchange="aplicarFiltros()">
+            <option value="">Todos os processos</option>
+            <option value="RECEBIMENTO">Recebimento</option>
+            <option value="EXPEDIÇÃO">Expedição</option>
+        </select>
+
         <select class="filtro-select" id="filtro-setor" onchange="aoMudarSetor()">
             <option value="">Todos os setores</option>
         </select>
@@ -1396,11 +1402,12 @@ function filtrarDropdownEquipTop() {
 }
 
 function aplicarFiltros() {
-    const tipo   = document.getElementById('filtro-tipo').value;
-    const esp    = document.getElementById('filtro-esp').value;
-    const setor  = document.getElementById('filtro-setor').value;
-    const equip  = document.getElementById('filtro-equip-top').value;
-    const inicio = dataInicioPeriodo(periodoCurrent);
+    const tipo     = document.getElementById('filtro-tipo').value;
+    const esp      = document.getElementById('filtro-esp').value;
+    const processo = document.getElementById('filtro-processo').value;
+    const setor    = document.getElementById('filtro-setor').value;
+    const equip    = document.getElementById('filtro-equip-top').value;
+    const inicio   = dataInicioPeriodo(periodoCurrent);
 
     dadosFiltrados = todosOsDados.filter(os => {
         const dataOS = os.dados?.['i-data'];
@@ -1408,10 +1415,11 @@ function aplicarFiltros() {
             const d = new Date(dataOS + 'T00:00:00');
             if (d < inicio) return false;
         }
-        if (tipo  && os.choices?.tipo  !== tipo)  return false;
-        if (esp   && os.choices?.esp   !== esp)   return false;
-        if (setor && os.dados?.['i-setor'] !== setor) return false;
-        if (equip && os.dados?.['i-tagm']  !== equip) return false;
+        if (tipo     && os.choices?.tipo     !== tipo) return false;
+        if (esp      && os.choices?.esp      !== esp) return false;
+        if (processo && os.choices?.processo !== processo) return false;
+        if (setor    && os.dados?.['i-setor'] !== setor) return false;
+        if (equip    && os.dados?.['i-tagm']  !== equip) return false;
         return true;
     });
 
@@ -1637,6 +1645,7 @@ function gerarRelatorioHTML() {
     const filtros = [
         { label: 'Período', value: nomePeriodoAtual() },
         { label: 'Tipo', value: document.getElementById('filtro-tipo').value || 'Todos' },
+        { label: 'Processo', value: document.getElementById('filtro-processo').value || 'Todos' },
         { label: 'Especialidade', value: document.getElementById('filtro-esp').value || 'Todas' },
         { label: 'Setor', value: document.getElementById('filtro-setor').value || 'Todos' },
         { label: 'Equipamento', value: document.getElementById('filtro-equip-top').value || 'Todos' }
